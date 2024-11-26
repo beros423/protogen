@@ -318,8 +318,8 @@ if uploaded_file != None:
     ########################################################################################################
     ########################################################################################################
     st.write(sources)
-    sources_ot2 = sources
-    sources_janus = sources
+    sources_ot2 = sources.copy()
+    sources_janus = sources.copy()
     ### OT2 protocol
     with st.expander("OT2 protocol"):
         metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label = "Metadata").replace("\n", "\n    ")
@@ -334,15 +334,19 @@ if uploaded_file != None:
 
         # OT-2 프로토콜 생성 함수
         protocol_code, lv1_outputs = generate_ot2_protocol(sources_ot2 , designs, plate_posit, metadata, requirements)
+
+        st.write("generated protocol:")
         st.code(protocol_code, language='python')
+        st.write("generated output plate:")
         st.write(lv1_outputs)
 
     ### janus protocol
     with st.expander("Janus protocol"):
         dplate1_name = st.text_input("destination_name", value = "dest_01")
-        st.write(sources_janus)
         protocol, lv1_outputs_janus = generate_janus_protocol(sources_janus, designs, dplate1_name)
+        st.write("generated protocol:")
         st.write(protocol)
+        st.write("generated output plate:")
         st.write(lv1_outputs_janus)
     
 
