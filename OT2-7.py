@@ -8,16 +8,18 @@ from itertools import product
 st.set_page_config(layout = "wide")
 
 
-def find_source_well(sources, name, required_volume):
-    row = sources[(sources['name'] == name) & (sources['volume'] >= required_volume)].iloc[0]
+def find_source_well(sources_, name, required_volume):
+    row = sources_[(sources_['name'] == name) & (sources_['volume'] >= required_volume)].iloc[0]
     if row.empty:
+        st.warning(f"Not enough volume available for '{name}'")
         raise ValueError(f"Not enough volume available for '{name}'")
-    sources.loc[sources['name'] == name, 'volume'] -= required_volume  # Update the remaining volume
+    
+    sources_.loc[(sources_['name'] == row['name']) & (sources_['plate'] == row['plate']) & (sources_['well']==row['well']), 'volume'] -= required_volume  # Update the remaining volume
     return row['plate'], row['well']  # Return plate and well
 
 
 
-def generate_ot2_protocol(sources, designs, plate_posit, metadata, requirements):
+def generate_ot2_protocol(sources_ot2, designs, plate_posit, metadata, requirements):
     output_designs = pd.DataFrame(columns=["name","plate","well","volume","note"])
     protocol_script = f"""
 from opentrons import protocol_api
@@ -68,7 +70,7 @@ def run(protocol: protocol_api.ProtocolContext):
             output_design[k] = name
 
             try:
-                plate, well = find_source_well(sources, name, vol)
+                plate, well = find_source_well(sources_ot2, name, vol)
             except ValueError as e:
                 st.write(e)
                 volume_error = True
@@ -87,7 +89,7 @@ def run(protocol: protocol_api.ProtocolContext):
     return protocol_script, output_designs
 
 
-def generate_janus_protocol(sources, designs, destination_name):
+def generate_janus_protocol(sources_janus, designs, destination_name):
     protocol_rows = pd.DataFrame(columns=["Component", "Asp.Rack", "Asp.Posi", "Dsp.Rack", "Dsp.Posi", "Volume", "Note"])
     output_rows = pd.DataFrame(columns=["name","plate","well","volume","note"])
     volume_error = False
@@ -121,7 +123,8 @@ def generate_janus_protocol(sources, designs, destination_name):
             vol = item['volume']
 
             try:
-                plate, well = find_source_well(sources, name, vol)
+                # st.write(sources_janus, name)
+                plate, well = find_source_well(sources_janus, name, vol)
             except ValueError as e:
                 st.write(e)
                 volume_error = True
@@ -147,17 +150,14 @@ def generate_janus_protocol(sources, designs, destination_name):
 ####################################################################################
 ####################################################################################
 
-# 엑셀 파일 업로드 UI
 uploaded_file = st.file_uploader("Upload your Stocking Plate Excel file", type="xlsx")
 
 if uploaded_file != None:
-    # 엑셀 파일에서 시트 이름 가져오기
     xls = pd.ExcelFile(uploaded_file)
-    sheet_names = xls.sheet_names  # 엑셀 파일 내의 모든 시트 이름 리스트
+    sheet_names = xls.sheet_names
     default_vol = st.number_input("default volume", value = 100, min_value = 0, step = 10)
     sources = pd.DataFrame(columns = ["name","plate", "well", "volume","note"])
 
-    # 각 시트를 순차적으로 처리하여 데이터프레임 생성
     for sheet_name in sheet_names:
         df_sheet = pd.read_excel(uploaded_file, sheet_name=sheet_name)
         for row_index in range(len(df_sheet)):
@@ -166,7 +166,6 @@ if uploaded_file != None:
                 if pd.notna(cell_value) and cell_value == 'A':  # Detect row starting with 'A'
                     sr, sc = (row_index, col_index)
 
-        # 테이블 시작 위치 이후 데이터를 다시 로드하여 행과 열을 재설정
         df_sheet = pd.read_excel(uploaded_file, sheet_name=sheet_name, skiprows=sr, index_col=sc)
         
         for row_index, row in df_sheet.iterrows():
@@ -181,7 +180,7 @@ if uploaded_file != None:
                     }
                     
                     sources = pd.concat([sources, pd.DataFrame([data])])
-    # 각 파트들 분류
+
     sources = sources.assign(type = sources['name'].apply(lambda x:
         'Promoter' if x.startswith('(P)') else
         'CDS' if x.startswith('(C)') else
@@ -196,8 +195,9 @@ if uploaded_file != None:
     st.write("")
     st.subheader("Assembly Design")
 
-    st.write("### volumes", unsafe_allow_html=True)
+
     # 공통으로 넣을 거
+    st.write("### volumes", unsafe_allow_html=True)
     others = sources[sources['type'].isna()]['name'].drop_duplicates().tolist()
 
     commons = []
@@ -231,7 +231,7 @@ if uploaded_file != None:
             vols.append(st.number_input(label = category, value = 10, step = 10, min_value = 0, key=f"vols_{col}"))
 
 
-    ## 그냥 똑같은 디자인 여러개 추가하는 게 나을듯
+    ## 그냥 똑같은 디자인 여러개 추가하는 게 나을듯?
     st.write("======================")
     total_vol = 0
     for common in commons:
@@ -317,6 +317,9 @@ if uploaded_file != None:
 
     ########################################################################################################
     ########################################################################################################
+    st.write(sources)
+    sources_ot2 = sources
+    sources_janus = sources
     ### OT2 protocol
     with st.expander("OT2 protocol"):
         metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label = "Metadata").replace("\n", "\n    ")
@@ -330,14 +333,15 @@ if uploaded_file != None:
         plate_posit.append(["tiprack", st.selectbox(options = range(1,12), label = "tibrack position:", index = i+2)])
 
         # OT-2 프로토콜 생성 함수
-        protocol_code, lv1_outputs = generate_ot2_protocol(sources, designs, plate_posit, metadata, requirements)
+        protocol_code, lv1_outputs = generate_ot2_protocol(sources_ot2 , designs, plate_posit, metadata, requirements)
         st.code(protocol_code, language='python')
         st.write(lv1_outputs)
 
     ### janus protocol
     with st.expander("Janus protocol"):
         dplate1_name = st.text_input("destination_name", value = "dest_01")
-        protocol, lv1_outputs_janus = generate_janus_protocol(sources, designs, dplate1_name)
+        st.write(sources_janus)
+        protocol, lv1_outputs_janus = generate_janus_protocol(sources_janus, designs, dplate1_name)
         st.write(protocol)
         st.write(lv1_outputs_janus)
     
