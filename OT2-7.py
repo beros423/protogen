@@ -9,17 +9,17 @@ st.set_page_config(layout = "wide")
 
 
 def find_source_well(sources_, name, required_volume):
-    row = sources_[(sources_['name'] == name) & (sources_['volume'] >= required_volume)].iloc[0]
-    if row.empty:
+    sources_row = sources_[(sources_['name'] == name) & (sources_['volume'] >= required_volume)]
+    if sources_row.empty:
         st.warning(f"Not enough volume available for '{name}'")
         raise ValueError(f"Not enough volume available for '{name}'")
-    
+    row = sources_row.iloc[0]
     sources_.loc[(sources_['name'] == row['name']) & (sources_['plate'] == row['plate']) & (sources_['well']==row['well']), 'volume'] -= required_volume  # Update the remaining volume
     return row['plate'], row['well']  # Return plate and well
 
 
 
-def generate_ot2_protocol(sources_ot2, designs, plate_posit, metadata, requirements):
+def generate_ot2_protocol(sources_ot2, designs, plate_posit, metadata, requirements, sources):
     output_designs = pd.DataFrame(columns=["name","plate","well","volume","note"])
     protocol_script = f"""
 from opentrons import protocol_api
@@ -48,6 +48,8 @@ def run(protocol: protocol_api.ProtocolContext):
     for index, design in enumerate(designs):
         
         if volume_error:
+            protocol_script = "error"
+            output_designs = pd.DataFrame()
             break
         # set target destination well
         dest_list = ["A","B","C","D","E","F","G","H"]
@@ -72,7 +74,14 @@ def run(protocol: protocol_api.ProtocolContext):
             try:
                 plate, well = find_source_well(sources_ot2, name, vol)
             except ValueError as e:
-                st.write(e)
+                # st.error(f"{name} need more volume")
+                total_need = 0
+                for design in designs:
+                    for k, item in enumerate(design):
+                        if item['name'] == name:
+                            total_need += item['volume']
+                total_have = sources.loc[sources['name'] == name, 'volume'].sum()
+                st.error(f"total {total_have}ul in sources when {total_need}ul need")
                 volume_error = True
                 break
 
@@ -89,12 +98,13 @@ def run(protocol: protocol_api.ProtocolContext):
     return protocol_script, output_designs
 
 
-def generate_janus_protocol(sources_janus, designs, destination_name):
+def generate_janus_protocol(sources_janus, designs, destination_name, sources):
     protocol_rows = pd.DataFrame(columns=["Component", "Asp.Rack", "Asp.Posi", "Dsp.Rack", "Dsp.Posi", "Volume", "Note"])
     output_rows = pd.DataFrame(columns=["name","plate","well","volume","note"])
     volume_error = False
     for index, design in enumerate(designs):
         if volume_error:
+            protocol_rows, output_rows = None, None
             break
         
         # set target destination well
@@ -126,7 +136,13 @@ def generate_janus_protocol(sources_janus, designs, destination_name):
                 # st.write(sources_janus, name)
                 plate, well = find_source_well(sources_janus, name, vol)
             except ValueError as e:
-                st.write(e)
+                total_need = 0
+                for design in designs:
+                    for k, item in enumerate(design):
+                        if item['name'] == name:
+                            total_need += item['volume']
+                total_have = sources.loc[sources['name'] == name, 'volume'].sum()
+                st.error(f"total {total_have}ul in sources when {total_need}ul need")
                 volume_error = True
                 break
 
@@ -333,7 +349,7 @@ if uploaded_file != None:
         plate_posit.append(["tiprack", st.selectbox(options = range(1,12), label = "tibrack position:", index = i+2)])
 
         # OT-2 프로토콜 생성 함수
-        protocol_code, lv1_outputs = generate_ot2_protocol(sources_ot2 , designs, plate_posit, metadata, requirements)
+        protocol_code, lv1_outputs = generate_ot2_protocol(sources_ot2 , designs, plate_posit, metadata, requirements, sources)
 
         st.write("generated protocol:")
         st.code(protocol_code, language='python')
@@ -343,7 +359,7 @@ if uploaded_file != None:
     ### janus protocol
     with st.expander("Janus protocol"):
         dplate1_name = st.text_input("destination_name", value = "dest_01")
-        protocol, lv1_outputs_janus = generate_janus_protocol(sources_janus, designs, dplate1_name)
+        protocol, lv1_outputs_janus = generate_janus_protocol(sources_janus, designs, dplate1_name, sources)
         st.write("generated protocol:")
         st.write(protocol)
         st.write("generated output plate:")
@@ -396,6 +412,6 @@ if uploaded_file != None:
     dplate2_name = st.text_input("destination 2 plate name", value = "dest2")
 
     # sources, designs, plate_posit, metadata, requirements
-    janus_mapping, janus_output = generate_janus_protocol(lv1_outputs, lv2_designs, dplate2_name)
+    janus_mapping, janus_output = generate_janus_protocol(lv1_outputs, lv2_designs, dplate2_name, lv1_outputs)
     st.write(janus_mapping)
 
