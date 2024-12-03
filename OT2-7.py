@@ -167,10 +167,10 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
 ####################################################################################
 
 uploaded_file = st.file_uploader("Upload your Stocking Plate Excel file", type="xlsx")
-
 if uploaded_file == None:
     uploaded_file = "./plate_sample.xlsx"
 
+st.write(uploaded_file)
 if uploaded_file != None:
     xls = pd.ExcelFile(uploaded_file)
     sheet_names = xls.sheet_names
@@ -316,6 +316,8 @@ if uploaded_file != None:
                         # default=[items[0]] if items else [],
                         label_visibility="collapsed",
                     )
+                    if not selected_items[category]:
+                        selected_items[category] = [""]
         selected_items_comb = product(
             selected_items["Promoter"],
             selected_items["CDS"],
@@ -326,8 +328,10 @@ if uploaded_file != None:
         for combi in selected_items_comb:
             row_design = []
             for col, (category, item) in enumerate(zip(["Promoter", "CDS", "Terminator", "Connector"], combi)):
-                row_design.append({'name': item, 'volume': vols[col]})
+                if item is not "":
+                    row_design.append({'name': item, 'volume': vols[col]})
             row_design = row_design + commons
+            # st.write(row_design)
             for repeat in range(repeats):
                 designs.append(row_design)
 
