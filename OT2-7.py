@@ -168,6 +168,9 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
 
 uploaded_file = st.file_uploader("Upload your Stocking Plate Excel file", type="xlsx")
 
+if uploaded_file == None:
+    uploaded_file = "./plate_sample.xlsx"
+
 if uploaded_file != None:
     xls = pd.ExcelFile(uploaded_file)
     sheet_names = xls.sheet_names
@@ -333,7 +336,6 @@ if uploaded_file != None:
 
     ########################################################################################################
     ########################################################################################################
-    st.write(sources)
     sources_ot2 = sources.copy()
     sources_janus = sources.copy()
     ### OT2 protocol
