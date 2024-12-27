@@ -241,13 +241,22 @@ if uploaded_file != None:
         commons.append({'name':selected_name, 'volume':volume})
 
     ## 
-    cols = 4 
+    cols = st.number_input(label = "Parts of each wells", value = 4, step = 1, min_value = 0)
     ## volumes input
     vols = []
     cols_placeholder = st.columns(cols)
-    for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+
+    categories = ["Promoter", "CDS", "Terminator", "Connector"]
+    for col in range(cols):
+
+        if col < len(categories):
+            label = categories[col]
+        else:
+            label = f"ect{col - 3}"
+            categories.append(label)
+
         with cols_placeholder[col]:
-            vols.append(st.number_input(label = category, value = 10, step = 10, min_value = 0, key=f"vols_{col}"))
+            vols.append(st.number_input(label = label, value = 10, step = 10, min_value = 0, key=f"vols_{col}"))
 
 
     ## 그냥 똑같은 디자인 여러개 추가하는 게 나을듯?
@@ -267,7 +276,8 @@ if uploaded_file != None:
         repeats = st.number_input(label="Repeats of each assembly", value = 1, min_value = 1, step = 1)
     ## category naming
     cols_placeholder = st.columns(cols)
-    for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+
+    for col, category in enumerate(categories):
         with cols_placeholder[col]:
             st.write(category)
     
@@ -290,7 +300,7 @@ if uploaded_file != None:
         cols_placeholder = st.columns(cols)
 
         selected_items = {}
-        for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+        for col, category in enumerate(categories):
             with cols_placeholder[col]:
                 if category == "Connector":
                     items = options[category]
@@ -308,7 +318,10 @@ if uploaded_file != None:
                     )]
 
                 else:
-                    items = options[category]
+                    if col <= 3:                    
+                        items = options[category]
+                    else:
+                        items = sources['name'].drop_duplicates().tolist()
                     selected_items[category] = st.multiselect(
                         category,
                         items,
@@ -318,23 +331,22 @@ if uploaded_file != None:
                     )
                     if not selected_items[category]:
                         selected_items[category] = [""]
-        selected_items_comb = product(
-            selected_items["Promoter"],
-            selected_items["CDS"],
-            selected_items["Terminator"],
-            selected_items["Connector"]
-        )
+        selected_items_comb = product(*(selected_items[item] for item in categories))
+            # selected_items["Promoter"],
+            # selected_items["CDS"],
+            # selected_items["Terminator"],
+            # selected_items["Connector"]
 
         for combi in selected_items_comb:
             row_design = []
-            for col, (category, item) in enumerate(zip(["Promoter", "CDS", "Terminator", "Connector"], combi)):
+            for col, (category, item) in enumerate(zip(categories, combi)):
                 if item is not "":
                     row_design.append({'name': item, 'volume': vols[col]})
             row_design = row_design + commons
-            # st.write(row_design)
             for repeat in range(repeats):
                 designs.append(row_design)
-
+    
+    # st.write(designs)
 
 
 
@@ -420,4 +432,3 @@ if uploaded_file != None:
     # sources, designs, plate_posit, metadata, requirements
     janus_mapping, janus_output = generate_janus_protocol(lv1_outputs, lv2_designs, dplate2_name, lv1_outputs)
     st.write(janus_mapping)
-
