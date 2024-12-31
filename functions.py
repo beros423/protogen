@@ -95,10 +95,19 @@ def run(protocol: protocol_api.ProtocolContext):
     return protocol_script, output_designs
 
 
-def generate_janus_protocol(sources_janus, designs, destination_name, sources):
+def generate_janus_protocol(sources_janus, designs, destination_name, sources, plate_type = 96):
     protocol_rows = pd.DataFrame(columns=["Component", "Asp.Rack", "Asp.Posi", "Dsp.Rack", "Dsp.Posi", "Volume", "Note"])
     output_rows = pd.DataFrame(columns=["name","plate","well","volume","note"])
     volume_error = False
+    
+    # plate_type에 따른 row 길이 설정
+    if plate_type == 96:
+        row_len = 12
+    elif plate_type == 384:
+        row_len = 24
+    else:
+        raise ValueError("plate_type must be either 96 or 384")
+
     for index, design in enumerate(designs):
         if volume_error:
             protocol_rows, output_rows = None, None
@@ -106,8 +115,8 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
         
         # set target destination well
         dest_list = ["A","B","C","D","E","F","G","H"]
-        dest_row = int(index / 12)
-        destination = f"{dest_list[dest_row]}{index + 1 - 12*(dest_row)}"
+        dest_row = int(index / row_len)  # row_len 사용
+        destination = f"{dest_list[dest_row]}{index + 1 - row_len*(dest_row)}"  # row_len 사용
         protocol_row = {
             "Component": f"{destination_name}_{index+1}",
             "Asp.Rack": "",
