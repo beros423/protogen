@@ -167,7 +167,8 @@ if uploaded_file != None:
     ### janus protocol
     st.write("#### output::Janus mapping")
     dplate1_name = st.text_input("destination plate name", value = "dest_01")
-    protocol, lv1_outputs = generate_janus_protocol(sources_janus, designs, dplate1_name, sources)
+    plate_type = st.selectbox(label = "destination plate type", options = [96, 384], index = 0)
+    protocol, lv1_outputs = generate_janus_protocol(sources_janus, designs, dplate1_name, sources, plate_type)
     st.write("generated protocol:")
     st.write(protocol)
     st.write("generated output plate:")
