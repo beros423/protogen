@@ -436,7 +436,7 @@ if uploaded_file is not None:
         # lv1_outputs에 sources 추가
         combined_sources = pd.concat([lv1_outputs, sources])
 
-        st.write(combined_sources)
+        # st.write(combined_sources)
 
         # 결과 출력
         dplate2_name = st.text_input("Destination 2 plate name", value="dest2")
