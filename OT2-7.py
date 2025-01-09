@@ -146,6 +146,14 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
 
     return protocol_rows, output_rows
 
+def update_volumes(sources, designs):
+    for design in designs:
+        for item in design:
+            name = item['name']
+            volume = item['volume']
+            sources.loc[sources['name'] == name, 'volume'] -= volume
+    return sources
+
 # 파일 업로드 및 데이터 처리
 uploaded_file = st.file_uploader("Upload your Stocking Plate Excel file", type="xlsx")
 if uploaded_file is None:
@@ -434,3 +442,22 @@ if uploaded_file is not None:
         dplate2_name = st.text_input("Destination 2 plate name", value="dest2")
         janus_mapping, janus_output = generate_janus_protocol(combined_sources, lv2_designs, dplate2_name, combined_sources)
         st.write(janus_mapping)
+
+        # 사용된 용량을 반영한 sources 다운로드
+        updated_sources = update_volumes(sources.copy(), designs)
+        csv = updated_sources.to_csv(index=False)
+        st.download_button(
+            label="Download Updated Sources",
+            data=csv,
+            file_name='updated_sources.csv',
+            mime='text/csv'
+        )
+
+        # 중간 output plate 다운로드
+        csv_output = lv1_outputs.to_csv(index=False)
+        st.download_button(
+            label="Download Output Plate",
+            data=csv_output,
+            file_name='output_plate.csv',
+            mime='text/csv'
+        )
