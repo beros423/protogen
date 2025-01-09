@@ -15,6 +15,11 @@ uploaded_file = st.file_uploader("Upload your Stocking Plate CSV file", type="cs
 if uploaded_file == None:
     uploaded_file = "./Source_for_goldengate-PCR.csv"
 
+try:
+    sourceplate_name = st.text_input("Sourceplate name", value = os.path.splitext(os.path.basename(uploaded_file))[0])
+except:
+    sourceplate_name = "source"
+
 # st.write(uploaded_file)
 if uploaded_file != None:
     df = pd.read_csv(uploaded_file, encoding = "euc-kr")
@@ -25,7 +30,7 @@ if uploaded_file != None:
     
     sources['type'] = df['type']
     sources['name'] = df['Name']
-    sources['plate'] = st.text_input("Sourceplate name", value = os.path.splitext(os.path.basename(uploaded_file))[0])
+    sources['plate'] = st.text_input("Sourceplate name", value = sourceplate_name)
     sources['well'] = df['Source Well']
     sources['volume'] = df['Vol']
     sources['note'] = df.iloc[:, 5]
