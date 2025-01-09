@@ -153,10 +153,24 @@ if uploaded_file is None:
 if uploaded_file is not None:
     xls = pd.ExcelFile(uploaded_file)
     sheet_names = xls.sheet_names
-    default_vol = st.number_input("default volume", value=100, min_value=0, step=10)
+
+    # plate_name 입력을 한 줄에 배치
+    plate_col1, plate_col2 = st.columns([2, 8])
+    with plate_col1:
+        st.write("Plate name")
+    with plate_col2:
+        plate_names = [st.text_input(f"Plate {i+1} Name", value=sheet_name, key=f"plate_name_{i}") for i, sheet_name in enumerate(sheet_names)]
+
+    # default volume 입력을 한 줄에 배치
+    vol_col1, vol_col2 = st.columns([2, 8])
+    with vol_col1:
+        st.write("Default volume")
+    with vol_col2:
+        default_vol = st.number_input("Default volume", value=100, min_value=0, step=10, label_visibility="collapsed")
+
     sources = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
 
-    for sheet_name in sheet_names:
+    for i, sheet_name in enumerate(sheet_names):
         df_sheet = pd.read_excel(uploaded_file, sheet_name=sheet_name)
         for row_index in range(len(df_sheet)):
             for col_index in range(len(df_sheet.columns)):
@@ -171,7 +185,7 @@ if uploaded_file is not None:
                 if pd.notna(item):
                     data = {
                         "name": item,
-                        "plate": sheet_name.replace(" ", "_"),
+                        "plate": plate_names[i].replace(" ", "_"),  # 사용자가 입력한 plate_name 사용
                         "well": "".join([row_index, str(col_index)]),
                         "volume": default_vol,
                         "note": None
@@ -350,14 +364,22 @@ if uploaded_file is not None:
     group_options = lv1_outputs['name'].unique().tolist()
     user_defined_groups = []
 
-    # 사용자 정의 그룹 수 입력
-    num_groups = st.number_input("Number of groups", min_value=1, value=1, step=1)
+    # 사용자 정의 그룹 수 입력을 한 줄에 배치
+    group_col1, group_col2 = st.columns([2, 8])
+    with group_col1:
+        st.write("Number of groups")
+    with group_col2:
+        num_groups = st.number_input("Number of groups", min_value=1, value=1, step=1, label_visibility="collapsed")
 
     # 각 그룹에 대해 사용자로부터 입력받기
     for i in range(num_groups):
-        group_name = st.text_input(f"Group {i+1} Name", value=f"Group_{i+1}")
-        selected_items = st.multiselect(f"Select items for {group_name}", options=group_options, key=f"group_{i}")
-        user_defined_groups.append((group_name, selected_items))
+        group_col1, group_col2 = st.columns([2, 8])
+        with group_col1:
+            st.write(f"Group {i+1} Name")
+        with group_col2:
+            group_name = st.text_input(f"Group {i+1} Name", value=f"Group_{i+1}", key=f"group_name_{i}", label_visibility="collapsed")
+            selected_items = st.multiselect(f"Select items for {group_name}", options=group_options, key=f"group_{i}")
+            user_defined_groups.append((group_name, selected_items))
 
     # Lv2 디자인에 공통 부품 추가
     st.write("### Common parts for Lv2", unsafe_allow_html=True)
