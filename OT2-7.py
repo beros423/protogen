@@ -39,6 +39,8 @@ def run(protocol: protocol_api.ProtocolContext):
     p300 = protocol.load_instrument('p300_single', 'left', tip_racks=[tiprack])\n
     """
     volume_error = False
+    group_counters = {}  # 그룹별 인덱스 초기화
+
     for index, design in enumerate(designs):
         if volume_error:
             protocol_script = "error"
@@ -49,12 +51,20 @@ def run(protocol: protocol_api.ProtocolContext):
         dest_list = ["A", "B", "C", "D", "E", "F", "G", "H"]
         dest_row = int(index / 12)
         destination = f"{dest_list[dest_row]}{index + 1 - 12 * (dest_row)}"
+        
+        # 디자인에 그룹 이름을 포함하여 이름 설정
+        group_name = design[0]['note']  # 첫 번째 아이템의 note에서 그룹 이름 가져오기
+        if group_name not in group_counters:
+            group_counters[group_name] = 1  # 새로운 그룹이면 인덱스 초기화
+        else:
+            group_counters[group_name] += 1  # 기존 그룹이면 인덱스 증가
+
         output_design = {
-            'name': "",
+            'name': f"{group_name}_{group_counters[group_name]}",
             'plate': "dest_01",
             'well': destination,
             'volume': 0,
-            'note': None
+            'note': group_name
         }
         protocol = f"\n\n    # Assembly design {index + 1}"
         
@@ -62,7 +72,6 @@ def run(protocol: protocol_api.ProtocolContext):
         for k, item in enumerate(design):
             name = item['name']
             vol = item['volume']
-            output_design['name'] += name + "/"
             output_design['volume'] += vol
             output_design[k] = name
 
@@ -81,7 +90,6 @@ def run(protocol: protocol_api.ProtocolContext):
     p300.dispense({vol}, destination['{destination}'])
     p300.drop_tip()
     """
-        output_design['name'] = output_design['name'][:-1]  # 마지막 "/" 제거
         output_designs = pd.concat([output_designs, pd.DataFrame([output_design])])
         protocol_script += protocol
 
@@ -91,6 +99,8 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
     protocol_rows = pd.DataFrame(columns=["Component", "Asp.Rack", "Asp.Posi", "Dsp.Rack", "Dsp.Posi", "Volume", "Note"])
     output_rows = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
     volume_error = False
+    group_counters = {}  # 그룹별 인덱스 초기화
+
     for index, design in enumerate(designs):
         if volume_error:
             protocol_rows, output_rows = None, None
@@ -100,21 +110,29 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
         dest_list = ["A", "B", "C", "D", "E", "F", "G", "H"]
         dest_row = int(index / 12)
         destination = f"{dest_list[dest_row]}{index + 1 - 12 * (dest_row)}"
+        
+        # 디자인에 그룹 이름을 포함하여 이름 설정
+        group_name = design[0]['note']  # 첫 번째 아이템의 note에서 그룹 이름 가져오기
+        if group_name not in group_counters:
+            group_counters[group_name] = 1  # 새로운 그룹이면 인덱스 초기화
+        else:
+            group_counters[group_name] += 1  # 기존 그룹이면 인덱스 증가
+
         protocol_row = {
-            "Component": f"{destination_name}_{index + 1}",
+            "Component": f"{group_name}_{group_counters[group_name]}",
             "Asp.Rack": "",
             "Asp.Posi": "",
             "Dsp.Rack": destination_name,
             "Dsp.Posi": destination,
             "Volume": 0,
-            "Note": ""
+            "Note": group_name
         }
         output_row = {
-            "name": f"{destination_name}_{index + 1}",
+            "name": f"{group_name}_{group_counters[group_name]}",
             "plate": destination_name,
             "well": destination,
             "volume": 0,
-            "note": ""
+            "note": group_name
         }
         
         # 디자인에서 소스 데이터 추출
@@ -136,12 +154,10 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
             protocol_row["Note"] = name
             protocol_row["Volume"] = vol
             
-            output_row['note'] += f"{name}/"
             output_row['volume'] += vol
             output_row[k] = name
 
             protocol_rows = pd.concat([protocol_rows, pd.DataFrame([protocol_row])])
-        output_row['note'] = output_row['note'][:-1]
         output_rows = pd.concat([output_rows, pd.DataFrame([output_row])])
 
     return protocol_rows, output_rows
@@ -217,6 +233,25 @@ if uploaded_file is not None:
     st.write("")
     st.subheader("Assembly Design")
 
+    # 사용자에게 그룹 지정 옵션 제공
+    user_defined_groups = []
+
+    # 사용자 정의 그룹 수 입력을 한 줄에 배치
+    group_col1, group_col2 = st.columns([2, 8])
+    with group_col1:
+        st.write("Number of groups")
+    with group_col2:
+        num_groups = st.number_input("Number of groups", min_value=1, value=1, step=1, label_visibility="collapsed")
+
+    # 각 그룹에 대해 사용자로부터 입력받기
+    for i in range(num_groups):
+        group_col1, group_col2 = st.columns([2, 8])
+        with group_col1:
+            st.write(f"Group {i+1} Name")
+        with group_col2:
+            group_name = st.text_input(f"Group {i+1} Name", value=f"Group_{i+1}", key=f"group_name_{i}", label_visibility="collapsed")
+            user_defined_groups.append(group_name)
+
     # 공통 부품 추가
     st.write("### volumes", unsafe_allow_html=True)
     others = sources[sources['type'].isna()]['name'].drop_duplicates().tolist()
@@ -239,7 +274,7 @@ if uploaded_file is not None:
         with col1:
             selected_name = st.selectbox(label="name", options=others, key=f"select_{row}", label_visibility="collapsed")
         with col2:
-            volume = st.number_input(label="vol", value=10, step=10, key=f"volume_{row}", label_visibility="collapsed")
+            volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
         commons.append({'name': selected_name, 'volume': volume})
 
     # 볼륨 입력
@@ -248,7 +283,7 @@ if uploaded_file is not None:
     cols_placeholder = st.columns(cols)
     for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
         with cols_placeholder[col]:
-            vols.append(st.number_input(label=category, value=10, step=10, min_value=0, key=f"vols_{col}"))
+            vols.append(st.number_input(label=category, value=1., step=0.1, min_value=0., key=f"vols_{col}"))
 
     # 총 볼륨 계산
     st.write("======================")
@@ -283,53 +318,60 @@ if uploaded_file is not None:
         "Connector": connector_options
     }
 
-    for row in range(rows):
-        cols_placeholder = st.columns(cols)
+    for group_name in user_defined_groups:
+        st.write(f"Design for {group_name}")
+        for row in range(rows):
+            cols_placeholder = st.columns(cols)
 
-        selected_items = {}
-        for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
-            with cols_placeholder[col]:
-                if category == "Connector":
-                    items = options[category]
-                    selected_items[category] = [st.selectbox(
-                        category,
-                        items,
-                        key=f"select_{row}_{col}",
-                        index=(
-                            connector_options.index(connector_ex[0]) if row == 0   # 첫 번째 행
-                            else connector_options.index(connector_ex[row]) if row == rows - 1 # 마지막 행
-                            else connector_options.index(connector_endo[row-1])  # 그 외
-                        ),
-                        label_visibility="collapsed",
-                        disabled=False
-                    )]
+            selected_items = {}
+            for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+                with cols_placeholder[col]:
+                    if category == "Connector":
+                        items = options[category]
+                        selected_items[category] = [st.selectbox(
+                            category,
+                            items,
+                            key=f"select_{row}_{col}_{group_name}",
+                            index=(
+                                connector_options.index(connector_ex[0]) if row == 0   # 첫 번째 행
+                                else connector_options.index(connector_ex[row]) if row == rows - 1 # 마지막 행
+                                else connector_options.index(connector_endo[row-1])  # 그 외
+                            ),
+                            label_visibility="collapsed",
+                            disabled=False
+                        )]
 
-                else:
-                    items = options[category]
-                    selected_items[category] = st.multiselect(
-                        category,
-                        items,
-                        key=f"select_{row}_{col}",
-                        label_visibility="collapsed",
-                    )
-                    if not selected_items[category]:
-                        selected_items[category] = [""]
+                    else:
+                        items = options[category]
+                        selected_items[category] = st.multiselect(
+                            category,
+                            items,
+                            key=f"select_{row}_{col}_{group_name}",
+                            label_visibility="collapsed",
+                        )
+                        if not selected_items[category]:
+                            selected_items[category] = [""]
 
-        selected_items_comb = product(
-            selected_items["Promoter"],
-            selected_items["CDS"],
-            selected_items["Terminator"],
-            selected_items["Connector"]
-        )
+            selected_items_comb = product(
+                selected_items["Promoter"],
+                selected_items["CDS"],
+                selected_items["Terminator"],
+                selected_items["Connector"]
+            )
 
-        for combi in selected_items_comb:
-            row_design = []
-            for col, (category, item) in enumerate(zip(["Promoter", "CDS", "Terminator", "Connector"], combi)):
-                if item != "":
-                    row_design.append({'name': item, 'volume': vols[col]})
-            row_design += commons
-            for repeat in range(repeats):
-                designs.append(row_design)
+            for combi in selected_items_comb:
+                row_design = []
+                for col, (category, item) in enumerate(zip(["Promoter", "CDS", "Terminator", "Connector"], combi)):
+                    if item != "":
+                        row_design.append({'name': item, 'volume': vols[col]})
+                row_design += commons
+                for repeat in range(repeats):
+                    # 디자인에 그룹 이름을 note로 추가
+                    design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': group_name} for item in row_design]
+                    designs.append(design_with_note)
+
+
+
 
     # OT2 프로토콜 생성
     sources_ot2 = sources.copy()
@@ -368,27 +410,6 @@ if uploaded_file is not None:
     # 레벨 2 디자인
     st.subheader("Lv2 Design")
 
-    # 사용자에게 그룹 지정 옵션 제공
-    group_options = lv1_outputs['name'].unique().tolist()
-    user_defined_groups = []
-
-    # 사용자 정의 그룹 수 입력을 한 줄에 배치
-    group_col1, group_col2 = st.columns([2, 8])
-    with group_col1:
-        st.write("Number of groups")
-    with group_col2:
-        num_groups = st.number_input("Number of groups", min_value=1, value=1, step=1, label_visibility="collapsed")
-
-    # 각 그룹에 대해 사용자로부터 입력받기
-    for i in range(num_groups):
-        group_col1, group_col2 = st.columns([2, 8])
-        with group_col1:
-            st.write(f"Group {i+1} Name")
-        with group_col2:
-            group_name = st.text_input(f"Group {i+1} Name", value=f"Group_{i+1}", key=f"group_name_{i}", label_visibility="collapsed")
-            selected_items = st.multiselect(f"Select items for {group_name}", options=group_options, key=f"group_{i}")
-            user_defined_groups.append((group_name, selected_items))
-
     # Lv2 디자인에 공통 부품 추가
     st.write("### Common parts for Lv2", unsafe_allow_html=True)
     lv2_commons = []
@@ -410,54 +431,47 @@ if uploaded_file is not None:
             selected_name = st.selectbox(label="name", options=others, key=f"lv2_select_{row}", label_visibility="collapsed")
         with col2:
             volume = st.number_input(label="vol", value=10, step=10, key=f"lv2_volume_{row}", label_visibility="collapsed")
-        lv2_commons.append({'name': selected_name, 'volume': volume})
+        lv2_commons.append({'name': selected_name, 'volume': volume, "note":"Common"})
 
-    if st.button("Generate Lv2 Designs"):
-        valid_combinations = []
+    valid_combinations = []
 
-        # 사용자 정의 그룹 내에서 가능한 조합 생성
-        for group_name, items in user_defined_groups:
-            group_data = lv1_outputs[lv1_outputs['name'].isin(items)].to_dict("records")
-            group_combinations = list(product(group_data, repeat=1))  # 각 그룹 내에서 조합 생성
-            for combination in group_combinations:
-                unique_1_values = {item['name'] for item in combination}
-                if len(unique_1_values) == len(combination):  # 중복이 없을 경우
-                    valid_combinations.append(combination)
+    # Lv1 결과물에서 note에 있는 그룹으로 먼저 나누기
+    note_groups = lv1_outputs.groupby('note')
+    for note, note_group in note_groups:
+        # 각 note 그룹 내에서 CDS 열을 기준으로 그룹화
+        cds_groups = note_group.groupby(note_group.columns[6])  # CDS 열을 기준으로 그룹화
+        cds_combinations = list(product(*[group.to_dict("records") for _, group in cds_groups]))
 
-        lv2_asp_vol = st.number_input("Volume for each", value=8)
+        for combi in cds_combinations:
+            unique_1_values = {item['name'] for item in combi}
+            if len(unique_1_values) == len(combi):  # 중복이 없을 경우
+                valid_combinations.append(combi)
 
-        # lv2_designs 생성
-        lv2_designs = []
-        for combi in valid_combinations:
-            row_design = [{'name': item['name'], 'volume': lv2_asp_vol} for item in combi]
-            row_design += lv2_commons  # 공통 부품 추가
-            lv2_designs.append(row_design)
+    lv2_asp_vol = st.number_input("Volume for each", value=8)
 
-        # lv1_outputs에 sources 추가
-        combined_sources = pd.concat([lv1_outputs, sources])
+    # lv2_designs 생성
+    lv2_designs = []
+    for c, combi in enumerate(valid_combinations):
+        row_design = [{'name': item['name'], 'volume': lv2_asp_vol, 'note': item['note']} for item in combi]
+        row_design += lv2_commons  # 공통 부품 추가
+        lv2_designs.append(row_design)
 
-        # st.write(combined_sources)
+    # st.write(lv2_designs)
 
-        # 결과 출력
-        dplate2_name = st.text_input("Destination 2 plate name", value="dest2")
-        janus_mapping, janus_output = generate_janus_protocol(combined_sources, lv2_designs, dplate2_name, combined_sources)
-        st.write(janus_mapping)
+    # lv1_outputs에 sources 추가
+    combined_sources = pd.concat([lv1_outputs, sources])
 
-        # 사용된 용량을 반영한 sources 다운로드
-        updated_sources = update_volumes(sources.copy(), designs)
-        csv = updated_sources.to_csv(index=False)
-        st.download_button(
-            label="Download Updated Sources",
-            data=csv,
-            file_name='updated_sources.csv',
-            mime='text/csv'
-        )
+    # 결과 출력
+    dplate2_name = st.text_input("Destination 2 plate name", value="dest2")
+    janus_mapping, janus_output = generate_janus_protocol(combined_sources, lv2_designs, dplate2_name, combined_sources)
+    st.write("mapping:")
+    st.write(janus_mapping)
+    st.write("output plate:")
+    st.write(janus_output)
 
-        # 중간 output plate 다운로드
-        csv_output = lv1_outputs.to_csv(index=False)
-        st.download_button(
-            label="Download Output Plate",
-            data=csv_output,
-            file_name='output_plate.csv',
-            mime='text/csv'
-        )
+    # 사용된 용량을 반영한 sources 다운로드
+    updated_sources = update_volumes(sources.copy(), designs)
+    st.write("updated sources")
+    st.write(updated_sources)
+
+
