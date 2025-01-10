@@ -190,7 +190,7 @@ if uploaded_file is not None:
     with vol_col1:
         st.write("Default volume")
     with vol_col2:
-        default_vol = st.number_input("Default volume", value=100, min_value=0, step=10, label_visibility="collapsed")
+        default_vol = st.number_input("Default volume", value=100., min_value=0., step=10., label_visibility="collapsed")
 
     sources = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
 
