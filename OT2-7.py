@@ -430,7 +430,7 @@ if uploaded_file is not None:
         with col1:
             selected_name = st.selectbox(label="name", options=others, key=f"lv2_select_{row}", label_visibility="collapsed")
         with col2:
-            volume = st.number_input(label="vol", value=10, step=10, key=f"lv2_volume_{row}", label_visibility="collapsed")
+            volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"lv2_volume_{row}", label_visibility="collapsed")
         lv2_commons.append({'name': selected_name, 'volume': volume, "note":"Common"})
 
     valid_combinations = []
@@ -447,7 +447,7 @@ if uploaded_file is not None:
             if len(unique_1_values) == len(combi):  # 중복이 없을 경우
                 valid_combinations.append(combi)
 
-    lv2_asp_vol = st.number_input("Volume for each", value=8)
+    lv2_asp_vol = st.number_input("Volume for each", value=8., step = 0.1, min_value = 0.)
 
     # lv2_designs 생성
     lv2_designs = []
