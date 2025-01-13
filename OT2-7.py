@@ -262,7 +262,7 @@ if uploaded_file is not None:
             group_name = st.text_input(f"Group {i+1} Name", value=f"Group_{i+1}", key=f"group_name_{i}", label_visibility="collapsed")
             user_defined_groups.append(group_name)
         with group_col3:
-            group_nop = st.number_input(f"Number of parts", value = 3, key = f"Group_noa{i}", min_value = 1, step = 1, label_visibility = "collapsed")
+            group_nop = st.number_input(f"Number of TU", value = 3, key = f"Group_noa{i}", min_value = 1, step = 1, label_visibility = "collapsed")
             user_defined_groups_nop.append(group_nop)
         with group_col4:
             group_roa = st.number_input(f"Repeats of assembly", value = 1, key = f"Group_roa{i}", min_value = 1, step = 1, label_visibility = "collapsed")
