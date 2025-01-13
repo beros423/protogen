@@ -250,7 +250,7 @@ if uploaded_file is not None:
     with group_col2:
         st.write("Group names")
     with group_col3:
-        st.write("Number of parts")
+        st.write("Number of TU")
     with group_col4:
         st.write("Repeats of assembly")
 
