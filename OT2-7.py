@@ -190,7 +190,7 @@ if uploaded_file is not None:
     with vol_col1:
         st.write("Default volume")
     with vol_col2:
-        default_vol = st.number_input("Default volume", value=100., min_value=0., step=10., label_visibility="collapsed")
+        default_vol = st.number_input("Default volume", value=100, min_value=0, step=10, label_visibility="collapsed")
 
     sources = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
 
@@ -235,6 +235,8 @@ if uploaded_file is not None:
 
     # 사용자에게 그룹 지정 옵션 제공
     user_defined_groups = []
+    user_defined_groups_nop = []
+    user_defined_groups_roa = []
 
     # 사용자 정의 그룹 수 입력을 한 줄에 배치
     group_col1, group_col2 = st.columns([2, 8])
@@ -244,13 +246,28 @@ if uploaded_file is not None:
         num_groups = st.number_input("Number of groups", min_value=1, value=1, step=1, label_visibility="collapsed")
 
     # 각 그룹에 대해 사용자로부터 입력받기
+    group_col1, group_col2, group_col3, group_col4 = st.columns([2, 3, 2, 2])
+    with group_col2:
+        st.write("Group names")
+    with group_col3:
+        st.write("Number of parts")
+    with group_col4:
+        st.write("Repeats of assembly")
+
     for i in range(num_groups):
-        group_col1, group_col2 = st.columns([2, 8])
+        group_col1, group_col2, group_col3, group_col4 = st.columns([2, 3, 2, 2])
         with group_col1:
-            st.write(f"Group {i+1} Name")
+            st.write(f"Group {i+1}")
         with group_col2:
             group_name = st.text_input(f"Group {i+1} Name", value=f"Group_{i+1}", key=f"group_name_{i}", label_visibility="collapsed")
             user_defined_groups.append(group_name)
+        with group_col3:
+            group_nop = st.number_input(f"Number of parts", value = 3, key = f"Group_noa{i}", min_value = 1, step = 1, label_visibility = "collapsed")
+            user_defined_groups_nop.append(group_nop)
+        with group_col4:
+            group_roa = st.number_input(f"Repeats of assembly", value = 1, key = f"Group_roa{i}", min_value = 1, step = 1, label_visibility = "collapsed")
+            user_defined_groups_roa.append(group_roa)
+
 
     # 공통 부품 추가
     st.write("### volumes", unsafe_allow_html=True)
@@ -288,14 +305,14 @@ if uploaded_file is not None:
     # 총 볼륨 계산
     st.write("======================")
     total_vol = sum(common['volume'] for common in commons) + sum(vols)
-    st.write(f"total {total_vol}ul of each assembly")
+    st.write(f"total {total_vol}ul of each well")
     st.write("======================")
 
-    assembly_set_col = st.columns(2)
-    with assembly_set_col[0]:
-        rows = st.number_input(label="Number of assembly", value=3, min_value=1)
-    with assembly_set_col[1]:
-        repeats = st.number_input(label="Repeats of each assembly", value=1, min_value=1, step=1)
+    # assembly_set_col = st.columns(2)
+    # with assembly_set_col[0]:
+    #     rows = st.number_input(label="Number of assembly", value=3, min_value=1)
+    # with assembly_set_col[1]:
+    #     repeats = st.number_input(label="Repeats of each assembly", value=1, min_value=1, step=1)
 
     # 카테고리 이름 설정
     cols_placeholder = st.columns(cols)
@@ -318,8 +335,9 @@ if uploaded_file is not None:
         "Connector": connector_options
     }
 
-    for group_name in user_defined_groups:
+    for g, group_name in enumerate(user_defined_groups):
         st.write(f"Design for {group_name}")
+        rows = user_defined_groups_nop[g]
         for row in range(rows):
             cols_placeholder = st.columns(cols)
 
@@ -338,7 +356,7 @@ if uploaded_file is not None:
                                 else connector_options.index(connector_endo[row-1])  # 그 외
                             ),
                             label_visibility="collapsed",
-                            disabled=False
+                            disabled=True
                         )]
 
                     else:
@@ -365,7 +383,7 @@ if uploaded_file is not None:
                     if item != "":
                         row_design.append({'name': item, 'volume': vols[col]})
                 row_design += commons
-                for repeat in range(repeats):
+                for repeat in range(user_defined_groups_roa[g]):
                     # 디자인에 그룹 이름을 note로 추가
                     design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': group_name} for item in row_design]
                     designs.append(design_with_note)
