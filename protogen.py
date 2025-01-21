@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from itertools import product
+from itertools import product, permutations, combinations
 
 # Streamlit 페이지 설정
 st.set_page_config(layout="wide")
@@ -14,10 +14,11 @@ def find_source_well(sources_, name, required_volume):
     sources_.loc[(sources_['name'] == row['name']) & (sources_['plate'] == row['plate']) & (sources_['well'] == row['well']), 'volume'] -= required_volume
     return row['plate'], row['well']
 
-def generate_ot2_protocol(sources_ot2, designs, plate_posit, metadata, requirements, sources):
+def generate_ot2_protocol(designs, plate_posit, metadata, requirements, sources):
     output_designs = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
     protocol_script = f"""
 from opentrons import protocol_api
+from itertools import permutations
 
 # metadata
 metadata = {{
@@ -60,14 +61,14 @@ def run(protocol: protocol_api.ProtocolContext):
             group_counters[group_name] += 1  # 기존 그룹이면 인덱스 증가
 
         output_design = {
-            'name': f"{group_name}_{group_counters[group_name]}",
+            'name': f"{design[0]["name"]}-{design[1]["name"]}-{design[2]["name"]}",
             'plate': "dest_01",
             'well': destination,
             'volume': 0,
-            'note': group_name
+            'note': f"{group_name}_{group_counters[group_name]}"
         }
         protocol = f"\n\n    # Assembly design {index + 1}"
-        
+
         # 디자인에서 소스 데이터 추출
         for k, item in enumerate(design):
             name = item['name']
@@ -76,7 +77,7 @@ def run(protocol: protocol_api.ProtocolContext):
             output_design[k] = name
 
             try:
-                plate, well = find_source_well(sources_ot2, name, vol)
+                plate, well = find_source_well(sources, name, vol)
             except ValueError:
                 total_need = sum(item['volume'] for design in designs for item in design if item['name'] == name)
                 total_have = sources.loc[sources['name'] == name, 'volume'].sum()
@@ -95,7 +96,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     return protocol_script, output_designs
 
-def generate_janus_protocol(sources_janus, designs, destination_name, sources):
+def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
     protocol_rows = pd.DataFrame(columns=["Component", "Asp.Rack", "Asp.Posi", "Dsp.Rack", "Dsp.Posi", "Volume", "Note"])
     output_rows = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
     volume_error = False
@@ -127,12 +128,13 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
             "Volume": 0,
             "Note": group_name
         }
+
         output_row = {
-            "name": f"{group_name}_{group_counters[group_name]}",
+            "name": f"{design[0]["name"]}-{design[1]["name"]}-{design[2]["name"]}" if naming == "TU" else f"{group_name}_{group_counters[group_name]}",
             "plate": destination_name,
             "well": destination,
             "volume": 0,
-            "note": group_name
+            "note": f"{group_name}_{group_counters[group_name]}"
         }
         
         # 디자인에서 소스 데이터 추출
@@ -141,7 +143,7 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
             vol = item['volume']
 
             try:
-                plate, well = find_source_well(sources_janus, name, vol)
+                plate, well = find_source_well(sources, name, vol)
             except ValueError:
                 total_need = sum(item['volume'] for design in designs for item in design if item['name'] == name)
                 total_have = sources.loc[sources['name'] == name, 'volume'].sum()
@@ -162,13 +164,6 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources):
 
     return protocol_rows, output_rows
 
-def update_volumes(sources, designs):
-    for design in designs:
-        for item in design:
-            name = item['name']
-            volume = item['volume']
-            sources.loc[sources['name'] == name, 'volume'] -= volume
-    return sources
 
 # 파일 업로드 및 데이터 처리
 uploaded_file = st.file_uploader("Upload your Stocking Plate Excel file", type="xlsx")
@@ -231,8 +226,11 @@ if uploaded_file is not None:
     st.write("")
     st.write("")
     st.write("")
-    st.subheader("Assembly Design")
+    st.write("## Assembly Design")
 
+    st.write("### Lv1 Design")
+    
+    st.write("> #### Groups")
     # 사용자에게 그룹 지정 옵션 제공
     user_defined_groups = []
     user_defined_groups_nop = []
@@ -241,7 +239,7 @@ if uploaded_file is not None:
     # 사용자 정의 그룹 수 입력을 한 줄에 배치
     group_col1, group_col2 = st.columns([2, 8])
     with group_col1:
-        st.write("Number of groups")
+        st.write("* Number of groups")
     with group_col2:
         num_groups = st.number_input("Number of groups", min_value=1, value=1, step=1, label_visibility="collapsed")
 
@@ -257,27 +255,28 @@ if uploaded_file is not None:
     for i in range(num_groups):
         group_col1, group_col2, group_col3, group_col4 = st.columns([2, 3, 2, 2])
         with group_col1:
-            st.write(f"Group {i+1}")
+            st.write(f"* Group {i+1}")
         with group_col2:
             group_name = st.text_input(f"Group {i+1} Name", value=f"Group_{i+1}", key=f"group_name_{i}", label_visibility="collapsed")
             user_defined_groups.append(group_name)
         with group_col3:
-            group_nop = st.number_input(f"Number of parts", value = 3, key = f"Group_noa{i}", min_value = 1, step = 1, label_visibility = "collapsed")
+            group_nop = st.number_input(f"Number of TU", value = 3, key = f"Group_noa{i}", min_value = 1, step = 1, label_visibility = "collapsed")
             user_defined_groups_nop.append(group_nop)
         with group_col4:
-            group_roa = st.number_input(f"Repeats of assembly", value = 1, key = f"Group_roa{i}", min_value = 1, step = 1, label_visibility = "collapsed")
+            group_roa = st.number_input(f"Repeats of assembly", value = 1, key = f"Group_roa{i}", min_value = 1, step = 1, label_visibility = "collapsed", disabled=True)
             user_defined_groups_roa.append(group_roa)
 
 
+    st.write("> #### Volume setting")
+
     # 공통 부품 추가
-    st.write("### volumes", unsafe_allow_html=True)
     others = sources[sources['type'].isna()]['name'].drop_duplicates().tolist()
 
     commons = []
     if "commons_row" not in st.session_state:
         st.session_state.commons_row = 1  # 초기 행 수 설정
 
-    col1, col2, col3 = st.columns([3, 1, 7])
+    col1, col2, col3 = st.columns([2, 1, 8])
     with col1: st.write("Common parts")
     with col2: 
         if st.button('add'):
@@ -293,8 +292,14 @@ if uploaded_file is not None:
         with col2:
             volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
         commons.append({'name': selected_name, 'volume': volume})
+    if 'total_mk' not in st.session_state:
+        st.session_state.total_mk = 0
+    for common in commons:
+        reqvol = st.session_state.total_mk*common['volume']
+        st.warning(f"total {reqvol}ul of {common['name']} required")
 
     # 볼륨 입력
+    st.write("TU parts")
     cols = 4 
     vols = []
     cols_placeholder = st.columns(cols)
@@ -303,25 +308,14 @@ if uploaded_file is not None:
             vols.append(st.number_input(label=category, value=1., step=0.1, min_value=0., key=f"vols_{col}"))
 
     # 총 볼륨 계산
-    st.write("======================")
     total_vol = sum(common['volume'] for common in commons) + sum(vols)
-    st.write(f"total {total_vol}ul of each well")
-    st.write("======================")
+    st.success(f"total {total_vol}ul of each TU")
 
-    # assembly_set_col = st.columns(2)
-    # with assembly_set_col[0]:
-    #     rows = st.number_input(label="Number of assembly", value=3, min_value=1)
-    # with assembly_set_col[1]:
-    #     repeats = st.number_input(label="Repeats of each assembly", value=1, min_value=1, step=1)
-
-    # 카테고리 이름 설정
-    cols_placeholder = st.columns(cols)
-    for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
-        with cols_placeholder[col]:
-            st.write(category)
-    
+    # TU designs
+    st.write("> #### TU design")
     designs = []
-
+    
+    ## connector 순서 및 그룹 설정
     connector_ex = sources[sources['name'].str.startswith('(N)s', na=False) | sources['name'].str.endswith('e', na=False)]['name'].drop_duplicates().sort_values().tolist()
     connector_ex = sorted(connector_ex, key=lambda x: [0 if c.isalpha() else 1 for c in x])
     connector_endo = sources[(~sources['name'].isin(connector_ex)) & sources['name'].str.startswith('(N)', na=False)]['name'].drop_duplicates().sort_values().tolist()
@@ -335,9 +329,17 @@ if uploaded_file is not None:
         "Connector": connector_options
     }
 
+    design_df = pd.DataFrame(columns=["Promoter", "CDS", "Terminator", "Connector", "Group"])
+    selected_group = []
     for g, group_name in enumerate(user_defined_groups):
-        st.write(f"Design for {group_name}")
+        st.write(f"* Design for {group_name}")
+        # 카테고리 이름 설정
+        cols_placeholder = st.columns(cols)
+        for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+            with cols_placeholder[col]:
+                st.write(category)
         rows = user_defined_groups_nop[g]
+        selected_row = []
         for row in range(rows):
             cols_placeholder = st.columns(cols)
 
@@ -366,9 +368,12 @@ if uploaded_file is not None:
                             items,
                             key=f"select_{row}_{col}_{group_name}",
                             label_visibility="collapsed",
+                            max_selections= 1 if category == "CDS" else None
                         )
                         if not selected_items[category]:
                             selected_items[category] = [""]
+
+            selected_row.append(selected_items)
 
             selected_items_comb = product(
                 selected_items["Promoter"],
@@ -378,118 +383,231 @@ if uploaded_file is not None:
             )
 
             for combi in selected_items_comb:
-                row_design = []
-                for col, (category, item) in enumerate(zip(["Promoter", "CDS", "Terminator", "Connector"], combi)):
-                    if item != "":
-                        row_design.append({'name': item, 'volume': vols[col]})
-                row_design += commons
-                for repeat in range(user_defined_groups_roa[g]):
-                    # 디자인에 그룹 이름을 note로 추가
-                    design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': group_name} for item in row_design]
-                    designs.append(design_with_note)
-
-
-
-
-    # OT2 프로토콜 생성
-    sources_ot2 = sources.copy()
-    sources_janus = sources.copy()
-    with st.expander("OT2 protocol"):
-        metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata").replace("\n", "\n    ")
-        requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements")
-
-        plate_posit = []
-        for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
-            position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i)
-            plate_posit.append([plate, position])
-        plate_posit.append(["destination", st.selectbox(options=range(1, 12), label="destination_rack position:", index=i+1)])
-        plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="tibrack position:", index=i+2)])
-
-        protocol_code, lv1_outputs = generate_ot2_protocol(sources_ot2, designs, plate_posit, metadata, requirements, sources)
-
-        st.write("generated protocol:")
-        st.code(protocol_code, language='python')
-        st.write("generated output plate:")
-        st.write(lv1_outputs)
-
-    # Janus 프로토콜 생성
-    with st.expander("Janus protocol"):
-        dplate1_name = st.text_input("destination_name", value="dest_01")
-        protocol, lv1_outputs_janus = generate_janus_protocol(sources_janus, designs, dplate1_name, sources)
-        st.write("generated protocol:")
-        st.write(protocol)
-        st.write("generated output plate:")
-        st.write(lv1_outputs_janus)
-
-    st.write(lv1_outputs)
-    for i in range(7):
+                design_df = pd.concat([design_df, pd.DataFrame([{
+                    "Promoter": combi[0],
+                    "CDS": combi[1],
+                    "Terminator": combi[2],
+                    "Connector": combi[3],
+                    "Group": group_name
+                }])], ignore_index=True)
+        selected_group.append(selected_row)
+    
+    for _ in range(2):
         st.write("")
 
-    # 레벨 2 디자인
-    st.subheader("Lv2 Design")
 
-    # Lv2 디자인에 공통 부품 추가
-    st.write("### Common parts for Lv2", unsafe_allow_html=True)
+    st.write("### Lv2 Design")
+    st.write("> Volume for each TU")
+    lv2_volume = st.number_input(label = "Lv2 volume for each TU", min_value = 0., value = 8., step = 0.1, label_visibility="collapsed")
+
     lv2_commons = []
-    if "lv2_commons_row" not in st.session_state:
-        st.session_state.lv2_commons_row = 1  # 초기 행 수 설정
+    if "commons_row2" not in st.session_state:
+        st.session_state.commons_row2 = 1  # 초기 행 수 설정
 
-    col1, col2, col3 = st.columns([3, 1, 7])
-    with col1: st.write("Common parts")
+    col1, col2, col3 = st.columns([2, 1, 8])
+    with col1: st.write("> Common parts")
     with col2: 
-        if st.button('add', key='lv2_add'):
-            st.session_state.lv2_commons_row += 1
+        if st.button('add', key = "add2"):
+            st.session_state.commons_row2 += 1
     with col3: 
-        if st.button('del', key='lv2_del') and st.session_state.lv2_commons_row > 1:
-            st.session_state.lv2_commons_row -= 1
+        if st.button('del', key = "del2") and st.session_state.commons_row2 > 1:
+            st.session_state.commons_row2 -= 1
 
-    for row in range(st.session_state.lv2_commons_row):
+    for row in range(st.session_state.commons_row2):
         col1, col2 = st.columns([6, 2])
         with col1:
-            selected_name = st.selectbox(label="name", options=others, key=f"lv2_select_{row}", label_visibility="collapsed")
+            selected_name = st.selectbox(label="name", options=others, key=f"select2_{row}", label_visibility="collapsed")
         with col2:
-            volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"lv2_volume_{row}", label_visibility="collapsed")
-        lv2_commons.append({'name': selected_name, 'volume': volume, "note":"Common"})
-
-    valid_combinations = []
-
-    # Lv1 결과물에서 note에 있는 그룹으로 먼저 나누기
-    note_groups = lv1_outputs.groupby('note')
-    for note, note_group in note_groups:
-        # 각 note 그룹 내에서 CDS 열을 기준으로 그룹화
-        cds_groups = note_group.groupby(note_group.columns[6])  # CDS 열을 기준으로 그룹화
-        cds_combinations = list(product(*[group.to_dict("records") for _, group in cds_groups]))
-
-        for combi in cds_combinations:
-            unique_1_values = {item['name'] for item in combi}
-            if len(unique_1_values) == len(combi):  # 중복이 없을 경우
-                valid_combinations.append(combi)
-
-    lv2_asp_vol = st.number_input("Volume for each", value=8., step = 0.1, min_value = 0.)
-
-    # lv2_designs 생성
-    lv2_designs = []
-    for c, combi in enumerate(valid_combinations):
-        row_design = [{'name': item['name'], 'volume': lv2_asp_vol, 'note': item['note']} for item in combi]
-        row_design += lv2_commons  # 공통 부품 추가
-        lv2_designs.append(row_design)
-
-    # st.write(lv2_designs)
-
-    # lv1_outputs에 sources 추가
-    combined_sources = pd.concat([lv1_outputs, sources])
-
-    # 결과 출력
-    dplate2_name = st.text_input("Destination 2 plate name", value="dest2")
-    janus_mapping, janus_output = generate_janus_protocol(combined_sources, lv2_designs, dplate2_name, combined_sources)
-    st.write("mapping:")
-    st.write(janus_mapping)
-    st.write("output plate:")
-    st.write(janus_output)
-
-    # 사용된 용량을 반영한 sources 다운로드
-    updated_sources = update_volumes(sources.copy(), designs)
-    st.write("updated sources")
-    st.write(updated_sources)
+            volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume2_{row}", label_visibility="collapsed")
+        lv2_commons.append({'name': selected_name, 'volume': volume})
 
 
+####### 우선 lv1의 designs를 기반으로 TU output 만든 다음 lv2 디자인 생성
+####### 그리고 나서 필요량 피드백 & volum update
+################################################################################
+################################################################################
+
+    def track_combination_usage(groups):
+        # 각 그룹에서 한 개씩 아이템을 뽑을 때 각 조합들이 사용된 횟수를 추적합니다.
+        for group in groups:
+            for item in group:
+                if item in combination_usage:
+                    combination_usage[item] += 1
+                else:
+                    combination_usage[item] = 1
+
+    # 그룹 A, B에서 세부 요소가 겹치지 않도록 선택 가능한 조합을 계산
+    def calculate_distinct_combinations(groups):
+        total_combinations = 0
+        valid_combinations = []
+
+        # 각 집합에서 가능한 모든 조합을 뽑아서 비교합니다
+        for selected_items in product(*groups):  # groups는 집합들의 리스트
+            # 각 선택된 조합을 세부 요소들로 나누어 비교
+            selected_elements = [set(item.split('-')) for item in selected_items]
+
+            # 모든 집합에서 뽑은 요소들이 겹치지 않으면 유효한 조합
+            is_valid = True
+            for i, elem_set in enumerate(selected_elements):
+                for j in range(i + 1, len(selected_elements)):
+                    if not elem_set.isdisjoint(selected_elements[j]):  # 교집합이 있으면 안됨
+                        is_valid = False
+                        break
+                if not is_valid:
+                    break
+
+            # 유효한 조합일 경우
+            if is_valid:
+                valid_combinations.append(selected_items)
+                total_combinations += 1
+
+        return total_combinations, valid_combinations
+
+    combination_usage = {}
+    valid_combination_list = []
+    for group in selected_group:
+        # 각 그룹의 세부 요소들을 정의
+        
+        promoters = [TU["Promoter"] for TU in group]
+        cdss = [TU["CDS"] for TU in group]
+        terminators = [TU["Terminator"] for TU in group]
+        # st.write(promoters, cdss, terminators)
+        # 그룹 A, B에서 가능한 조합 생성
+        groups = []
+        for i in range(len(group)):
+            groups.append([f"{a}-{b}-{c}" for a, b, c in product(promoters[i], cdss[i], terminators[i])])
+            
+        # 겹치지 않는 조합을 계산
+        total_combinations, valid_combinations = calculate_distinct_combinations(groups)
+
+        # 유효한 조합에서 각 조합이 몇 번 사용되는지 추적
+        track_combination_usage(valid_combinations)
+        valid_combination_list.append(valid_combinations)
+        # st.write("총 가능한 유효한 조합의 수:", total_combinations)
+        # st.write("유효한 조합들:", valid_combinations)
+        # st.write("각 조합이 사용된 횟수:", combination_usage)
+
+    # 각 조합이 사용된 횟수를 designs_df의 파트 조합에 맞는 row에 column으로 추가
+    design_df['TU_Usage'] = 0
+    design_df['Req_volume'] = 0
+    design_df['mk_num'] = 0
+    design_df['mk_vol'] = 0
+
+    for index, row in design_df.iterrows():
+        combination = f"{row['Promoter']}-{row['CDS']}-{row['Terminator']}"
+        if combination in combination_usage:
+            design_df.at[index, 'TU_Usage'] = combination_usage[combination]
+            design_df.at[index, 'Req_volume'] = combination_usage[combination] * lv2_volume
+            mk_num = combination_usage[combination] * lv2_volume
+            design_df.at[index, 'mk_num'] = int(mk_num/total_vol) + (mk_num%total_vol > 0)
+            design_df.at[index, 'mk_vol'] = (int(mk_num/total_vol) + (mk_num%total_vol > 0)) * total_vol 
+    
+    st.session_state.total_mk = sum(design_df["mk_num"])
+        
+################################################################################
+################################################################################
+
+
+
+    # Convert DataFrame to designs format
+    designs = []
+    
+    for _, row in design_df.iterrows():
+        row_design = []
+        for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+            if row[category] != "":
+                row_design.append({'name': row[category], 'volume': vols[col]*row["mk_num"]})  ########## volume 계산
+        for common in commons:
+            common_a = {'name': common['name'], 'volume': common['volume'] * row["mk_num"]}
+            row_design += [common_a]
+        for repeat in range(user_defined_groups_roa[user_defined_groups.index(row["Group"])]):
+            design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
+            designs.append(design_with_note)
+
+
+    for i in range(3):
+        st.write("")
+
+
+
+    ###################################################################################################
+
+    st.write("## Outputs")
+    st.write("#### Lv1")
+    with st.expander("Design detail for lv1"):
+        st.dataframe(design_df)
+
+    ### LV1 protocol generate
+    device = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device')
+    # OT2 프로토콜 생성
+    if device == "OT2":
+        with st.expander("OT2 protocol"):
+            metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata").replace("\n", "\n    ")
+            requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements")
+
+            plate_posit = []
+            for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
+                position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i)
+                plate_posit.append([plate, position])
+            plate_posit.append(["destination", st.selectbox(options=range(1, 12), label="destination_rack position:", index=i+1)])
+            plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="tibrack position:", index=i+2)])
+
+            protocol, lv1_outputs = generate_ot2_protocol(designs, plate_posit, metadata, requirements, sources)
+            
+            st.write("generated protocol:")
+            st.code(protocol, language='python')
+            st.write("generated output plate:")
+            st.write(lv1_outputs)
+            st.write("updated sources")
+            st.write(sources)
+
+    # Janus 프로토콜 생성
+    if device == "Janus":
+        dplate1_name = st.text_input("Destination Plate Name", value="dest_01")
+        with st.expander("Janus protocol"):
+            protocol, lv1_outputs = generate_janus_protocol(designs, dplate1_name, sources)
+            st.write("generated mapping:")
+            st.write(protocol)
+            st.write("generated output plate:")
+            st.write(lv1_outputs)
+            st.write("updated sources")
+            st.write(sources)
+    for i in range(7):
+        st.write("")
+    ###################################################################################################
+
+
+    st.write("### Lv2")
+
+    dplate2_name = st.text_input(label = "Destination Plate Name", value = "Dest_02", )
+
+    designs2 = []
+  
+    for g, comb in enumerate(valid_combination_list): # group
+        for i, item in enumerate(comb):               # combination
+            row_design = []
+            for n in item:                            # items
+                name = n
+                volume = lv2_volume
+                note = user_defined_groups[g]
+
+                row_design.append({'name': name, 'volume': volume, 'note':note})
+            row_design += lv2_commons
+            designs2.append(row_design)
+    
+
+    # Combine sources and lv1_outputs
+    combined_sources = pd.concat([sources, lv1_outputs])
+    # Generate Janus protocol for Lv2
+    protocol2, lv2_outputs = generate_janus_protocol(designs2, dplate2_name, combined_sources, naming="note")
+    # Separate sources and lv1_outputs
+    sources = combined_sources[combined_sources['name'].isin(sources['name'])].iloc[:, :6]
+    lv1_outputs = combined_sources[combined_sources['name'].isin(lv1_outputs['name'])]
+    
+
+    st.write("Janus mapping")
+    st.write(protocol2.reset_index(drop=True))
+    st.write("Final output plate")
+    st.write(lv2_outputs.reset_index(drop=True))
+    st.write("Updated Sources")
+    st.write(sources)
