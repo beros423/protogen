@@ -267,51 +267,6 @@ if uploaded_file is not None:
             group_roa = st.number_input(f"Repeats of assembly", value = 1, key = f"Group_roa{i}", min_value = 1, step = 1, label_visibility = "collapsed", disabled=True)
             user_defined_groups_roa.append(group_roa)
 
-
-    st.write("> #### Volume setting")
-
-    # 공통 부품 추가
-    others = sources[sources['type'].isna()]['name'].drop_duplicates().tolist()
-
-    commons = []
-    if "commons_row" not in st.session_state:
-        st.session_state.commons_row = 1  # 초기 행 수 설정
-
-    col1, col2, col3 = st.columns([2, 1, 8])
-    with col1: st.write("Common parts")
-    with col2: 
-        if st.button('add'):
-            st.session_state.commons_row += 1
-    with col3: 
-        if st.button('del') and st.session_state.commons_row > 1:
-            st.session_state.commons_row -= 1
-
-    for row in range(st.session_state.commons_row):
-        col1, col2 = st.columns([6, 2])
-        with col1:
-            selected_name = st.selectbox(label="name", options=others, key=f"select_{row}", label_visibility="collapsed")
-        with col2:
-            volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
-        commons.append({'name': selected_name, 'volume': volume})
-    if 'total_mk' not in st.session_state:
-        st.session_state.total_mk = 0
-    for common in commons:
-        reqvol = st.session_state.total_mk*common['volume']
-        st.warning(f"total {reqvol}ul of {common['name']} required")
-
-    # 볼륨 입력
-    st.write("TU parts")
-    cols = 4 
-    vols = []
-    cols_placeholder = st.columns(cols)
-    for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
-        with cols_placeholder[col]:
-            vols.append(st.number_input(label=category, value=1., step=0.1, min_value=0., key=f"vols_{col}"))
-
-    # 총 볼륨 계산
-    total_vol = sum(common['volume'] for common in commons) + sum(vols)
-    st.success(f"total {total_vol}ul of each TU")
-
     # TU designs
     st.write("> #### TU design")
     designs = []
@@ -332,6 +287,7 @@ if uploaded_file is not None:
 
     design_df = pd.DataFrame(columns=["Promoter", "CDS", "Terminator", "Connector", "Group"])
     selected_group = []
+    cols = 4 
     for g, group_name in enumerate(user_defined_groups):
         st.write(f"* Design for {group_name}")
         # 카테고리 이름 설정
@@ -393,6 +349,49 @@ if uploaded_file is not None:
                 }])], ignore_index=True)
         selected_group.append(selected_row)
     
+    st.write("> #### Volume setting")
+
+    # 공통 부품 추가
+    others = sources[sources['type'].isna()]['name'].drop_duplicates().tolist()
+
+    commons = []
+    if "commons_row" not in st.session_state:
+        st.session_state.commons_row = 1  # 초기 행 수 설정
+
+    col1, col2, col3 = st.columns([2, 1, 8])
+    with col1: st.write("Common parts")
+    with col2: 
+        if st.button('add'):
+            st.session_state.commons_row += 1
+    with col3: 
+        if st.button('del') and st.session_state.commons_row > 1:
+            st.session_state.commons_row -= 1
+
+    for row in range(st.session_state.commons_row):
+        col1, col2 = st.columns([6, 2])
+        with col1:
+            selected_name = st.selectbox(label="name", options=others, key=f"select_{row}", label_visibility="collapsed")
+        with col2:
+            volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
+        commons.append({'name': selected_name, 'volume': volume})
+    if 'total_mk' not in st.session_state:
+        st.session_state.total_mk = 0
+    for common in commons:
+        reqvol = st.session_state.total_mk*common['volume']
+        st.warning(f"total {reqvol}ul of {common['name']} required")
+
+    # 볼륨 입력
+    st.write("TU parts")
+    vols = []
+    cols_placeholder = st.columns(cols)
+    for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+        with cols_placeholder[col]:
+            vols.append(st.number_input(label=category, value=1., step=0.1, min_value=0., key=f"vols_{col}"))
+
+    # 총 볼륨 계산
+    total_vol = sum(common['volume'] for common in commons) + sum(vols)
+    st.success(f"total {total_vol}ul of each TU")
+
     for _ in range(2):
         st.write("")
 
