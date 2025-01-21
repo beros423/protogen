@@ -219,9 +219,10 @@ if uploaded_file is not None:
         None))
     
     # 플레이트별로 데이터프레임 표시
-    for plate_name, group in sources.groupby('plate'):
-        st.subheader(f"Plate: {plate_name}")
-        st.dataframe(group)
+    with st.expander("Sourceplate"):
+        for plate_name, group in sources.groupby('plate'):
+            st.subheader(f"Plate: {plate_name}")
+            st.dataframe(group)
 
     st.write("")
     st.write("")
