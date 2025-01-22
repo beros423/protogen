@@ -110,6 +110,7 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
         # 목적지 웰 설정
         dest_list = ["A", "B", "C", "D", "E", "F", "G", "H"]
         dest_row = int(index / 12)
+        st.write(dest_row)
         destination = f"{dest_list[dest_row]}{index + 1 - 12 * (dest_row)}"
         
         # 디자인에 그룹 이름을 포함하여 이름 설정
