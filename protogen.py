@@ -597,7 +597,9 @@ if uploaded_file is not None:
             row_design += lv2_commons
             designs2.append(row_design)
     
-
+    with st.expander("lv2_details"):
+        st.write(designs2)
+    
     # Combine sources and lv1_outputs
     combined_sources = pd.concat([sources, lv1_outputs])
     # Generate Janus protocol for Lv2
