@@ -497,8 +497,8 @@ if uploaded_file is not None:
         combination = f"{row['Promoter']}-{row['CDS']}-{row['Terminator']}"
         if combination in combination_usage:
             design_df.at[index, 'TU_Usage'] = combination_usage[combination]
-            design_df.at[index, 'Req_volume'] = combination_usage[combination] * (lv2_volume+2)
-            mk_num = combination_usage[combination] * (lv2_volume+2)
+            design_df.at[index, 'Req_volume'] = combination_usage[combination] * (lv2_volume)
+            mk_num = combination_usage[combination] * (lv2_volume)
             design_df.at[index, 'mk_num'] = int(mk_num/total_vol) + (mk_num%total_vol > 0)
             design_df.at[index, 'mk_vol'] = (int(mk_num/total_vol) + (mk_num%total_vol > 0)) * total_vol 
     
