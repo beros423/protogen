@@ -168,6 +168,11 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
     return protocol_rows, output_rows
 
 
+if 'total_mk' not in st.session_state:
+    st.session_state.total_mk = 0
+if 'design2_len' not in st.session_state:
+    st.session_state.design2_len = 0
+
 # 파일 업로드 및 데이터 처리
 uploaded_file = st.file_uploader("Upload your Stocking Plate Excel file", type="xlsx")
 if uploaded_file is None:
@@ -396,8 +401,6 @@ if uploaded_file is not None:
         }])
         sources = pd.concat([sources, common_data], ignore_index=True)
 
-    if 'total_mk' not in st.session_state:
-        st.session_state.total_mk = 0
     for common in commons:
         reqvol = st.session_state.total_mk*common['volume']
         st.warning(f"total {reqvol}ul of {common['name']} required")
@@ -558,6 +561,8 @@ if uploaded_file is not None:
     designs = []
     
     for _, row in design_df.iterrows():
+
+        
         row_design = []
         for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
             if row[category] != "":
