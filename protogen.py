@@ -584,7 +584,7 @@ if uploaded_file is not None:
     dplate2_name = st.text_input(label = "Destination Plate Name", value = "Dest_02", )
 
     designs2 = []
-  
+    
     for g, comb in enumerate(valid_combination_list): # group
         for i, item in enumerate(comb):               # combination
             row_design = []
@@ -596,7 +596,8 @@ if uploaded_file is not None:
                 row_design.append({'name': name, 'volume': volume, 'note':note})
             row_design += lv2_commons
             designs2.append(row_design)
-    
+
+    st.write(len(designs2))
     with st.expander("lv2_details"):
         st.write(designs2)
     
