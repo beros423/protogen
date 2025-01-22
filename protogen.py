@@ -513,21 +513,26 @@ if uploaded_file is not None:
     designs = []
     
     for _, row in design_df.iterrows():
-        row_design = []
-        for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
-            if row[category] != "":
-                row_design.append({'name': row[category], 'volume': vols[col]*row["mk_num"]})  ########## volume 계산
-        for common in commons:
-            common_a = {'name': common['name'], 'volume': common['volume'] * row["mk_num"]}
-            row_design += [common_a]
-        for repeat in range(user_defined_groups_roa[user_defined_groups.index(row["Group"])]):
-            design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
-            designs.append(design_with_note)
+        row_volume = sum(vols[col] * row["mk_num"] for col in range(4)) + sum(common['volume'] * row["mk_num"] for common in commons)
+        partition = int(row_volume // 40 + 1)
+        for j in range(partition):
+            row_design = []
+            for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+                if row[category] != "":
+                    row_design.append({'name': row[category], 'volume': vols[col]*row["mk_num"]/partition})  ########## volume 계산
+            for common in commons:
+                common_a = {'name': common['name'], 'volume': common['volume'] * row["mk_num"]/partition}
+                row_design += [common_a]
+            for repeat in range(user_defined_groups_roa[user_defined_groups.index(row["Group"])]):
+                design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
+                designs.append(design_with_note)
 
 
     for i in range(3):
         st.write("")
 
+    with st.expander("Design details"):
+        st.write(designs)
 
 
     ###################################################################################################
