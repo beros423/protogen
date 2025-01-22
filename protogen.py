@@ -110,7 +110,6 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
         # 목적지 웰 설정
         dest_list = ["A", "B", "C", "D", "E", "F", "G", "H"]
         dest_row = int(index / 12)
-        st.write(dest_row)
         destination = f"{dest_list[dest_row]}{index + 1 - 12 * (dest_row)}"
         
         # 디자인에 그룹 이름을 포함하여 이름 설정
@@ -517,9 +516,9 @@ if uploaded_file is not None:
         row_design = []
         for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
             if row[category] != "":
-                row_design.append({'name': row[category], 'volume': vols[col]*row["mk_num"]/partition})  ########## volume 계산
+                row_design.append({'name': row[category], 'volume': vols[col]*row["mk_num"]})
         for common in commons:
-            common_a = {'name': common['name'], 'volume': common['volume'] * row["mk_num"]/partition}
+            common_a = {'name': common['name'], 'volume': common['volume'] * row["mk_num"]}
             row_design += [common_a]
         for repeat in range(user_defined_groups_roa[user_defined_groups.index(row["Group"])]):
             design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
