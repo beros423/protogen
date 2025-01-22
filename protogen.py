@@ -79,8 +79,8 @@ def run(protocol: protocol_api.ProtocolContext):
             try:
                 plate, well = find_source_well(sources, name, vol)
             except ValueError:
-                total_need = sum(item['volume'] for design in designs for item in design if item['name'] == name)
                 total_have = sources.loc[sources['name'] == name, 'volume'].sum()
+                total_need = sum(item['volume'] for design in designs for item in design if item['name'] == name)
                 st.error(f"total {total_have}ul in sources when {total_need}ul need")
                 volume_error = True
                 break
@@ -101,16 +101,19 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
     output_rows = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
     volume_error = False
     group_counters = {}  # 그룹별 인덱스 초기화
-
     for index, design in enumerate(designs):
         if volume_error:
             protocol_rows, output_rows = None, None
             break
-        
+        plate_num = int((index)/96)
+        dest_name = destination_name[plate_num]
+        plate_index = index - plate_num*96 + 1
         # 목적지 웰 설정
         dest_list = ["A", "B", "C", "D", "E", "F", "G", "H"]
-        dest_row = int(index / 12)
-        destination = f"{dest_list[dest_row]}{index + 1 - 12 * (dest_row)}"
+        dest_row = int((plate_index-0.5)//12)
+        # st.write(f"plate_num={plate_num}, dest_name={dest_name}, plate_index={plate_index},dest_row={dest_row}")
+
+        destination = f"{dest_list[dest_row]}{plate_index - 12 * (dest_row)}"
         
         # 디자인에 그룹 이름을 포함하여 이름 설정
         group_name = design[0]['note']  # 첫 번째 아이템의 note에서 그룹 이름 가져오기
@@ -123,7 +126,7 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
             "Component": f"{group_name}_{group_counters[group_name]}",
             "Asp.Rack": "",
             "Asp.Posi": "",
-            "Dsp.Rack": destination_name,
+            "Dsp.Rack": dest_name,
             "Dsp.Posi": destination,
             "Volume": 0,
             "Note": group_name
@@ -131,7 +134,7 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
 
         output_row = {
             "name": f"{design[0]["name"]}-{design[1]["name"]}-{design[2]["name"]}" if naming == "TU" else f"{group_name}_{group_counters[group_name]}",
-            "plate": destination_name,
+            "plate": dest_name,
             "well": destination,
             "volume": 0,
             "note": f"{group_name}_{group_counters[group_name]}"
@@ -366,14 +369,33 @@ if uploaded_file is not None:
     with col3: 
         if st.button('del') and st.session_state.commons_row > 1:
             st.session_state.commons_row -= 1
-
+    col1, col2, col3, col4 = st.columns([3,2,2,2])
+    with col1: st.write("Part name")
+    with col2: st.write("Volume")
+    with col3: st.write("Stock plate")
+    with col4: st.write("Stock location")
     for row in range(st.session_state.commons_row):
-        col1, col2 = st.columns([6, 2])
+        col1, col2, col3, col4 = st.columns([3,2,2,2])
         with col1:
-            selected_name = st.selectbox(label="name", options=others, key=f"select_{row}", label_visibility="collapsed")
+            selected_name = st.text_input(label="name", key=f"selectname_{row}", label_visibility="collapsed", value= "GGAmix")
         with col2:
             volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
+        with col3:
+            stock_plate = st.text_input(label="source plate", key = f"common_source_plate_{row}", label_visibility = "collapsed", value = "Stockplate2")
+        with col4:
+            stock_code = st.text_input(label="stock location", key = f"common_stock_location_{row}", label_visibility = "collapsed", value = "A1")
         commons.append({'name': selected_name, 'volume': volume})
+
+        # Create a DataFrame for the common part and add it to sources
+        common_data = pd.DataFrame([{
+            'name': selected_name,
+            'plate': stock_plate,
+            'well': stock_code,
+            'volume': st.session_state.total_mk*volume,
+            'note': 'common'
+        }])
+        sources = pd.concat([sources, common_data], ignore_index=True)
+
     if 'total_mk' not in st.session_state:
         st.session_state.total_mk = 0
     for common in commons:
@@ -397,8 +419,12 @@ if uploaded_file is not None:
 
 
     st.write("### Lv2 Design")
-    st.write("> Volume for each TU")
-    lv2_volume = st.number_input(label = "Lv2 volume for each TU", min_value = 0., value = 8., step = 0.1, label_visibility="collapsed")
+    st.write("> Volume for each TU (*Deadvolume)")
+    col1, col2 = st.columns([7,2])
+    with col1:
+        lv2_volume = st.number_input(label = "Lv2 volume for each TU", min_value = 0., value = 8., step = 0.1, label_visibility="collapsed")
+    with col2:
+        lv2_deadvol = st.number_input(label = "Dead volume for each TU", min_value = 0., value = 2., step = 0.1, label_visibility="collapsed")
 
     lv2_commons = []
     if "commons_row2" not in st.session_state:
@@ -413,14 +439,33 @@ if uploaded_file is not None:
         if st.button('del', key = "del2") and st.session_state.commons_row2 > 1:
             st.session_state.commons_row2 -= 1
 
+    col1, col2, col3, col4 = st.columns([3,2,2,2])
+    with col1: st.write("Part name")
+    with col2: st.write("Volume")
+    with col3: st.write("Stock plate")
+    with col4: st.write("Stock location")
     for row in range(st.session_state.commons_row2):
-        col1, col2 = st.columns([6, 2])
+        col1, col2, col3, col4 = st.columns([3,2,2,2])
         with col1:
-            selected_name = st.selectbox(label="name", options=others, key=f"select2_{row}", label_visibility="collapsed")
+            selected_name = st.text_input(label="name", key=f"selectname2_{row}", label_visibility="collapsed", value= "Vector")
         with col2:
             volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume2_{row}", label_visibility="collapsed")
+        with col3:
+            stock_plate = st.text_input(label="source plate", key = f"common2_source_plate_{row}", label_visibility = "collapsed", value = "Stockplate2")
+        with col4:
+            stock_code = st.text_input(label="stock location", key = f"common2_stock_location_{row}", label_visibility = "collapsed", value = "A2")
         lv2_commons.append({'name': selected_name, 'volume': volume})
-
+        common_data = pd.DataFrame([{
+            'name': selected_name,
+            'plate': stock_plate,
+            'well': stock_code,
+            'volume': st.session_state.design2_len*volume,
+            'note': 'common'
+        }])
+        sources = pd.concat([sources, common_data], ignore_index=True)
+    for common in lv2_commons:
+        reqvol = st.session_state.design2_len*common['volume']
+        st.warning(f"total {reqvol}ul of {common['name']} required")
 
 ####### 우선 lv1의 designs를 기반으로 TU output 만든 다음 lv2 디자인 생성
 ####### 그리고 나서 필요량 피드백 & volum update
@@ -497,8 +542,8 @@ if uploaded_file is not None:
         combination = f"{row['Promoter']}-{row['CDS']}-{row['Terminator']}"
         if combination in combination_usage:
             design_df.at[index, 'TU_Usage'] = combination_usage[combination]
-            design_df.at[index, 'Req_volume'] = combination_usage[combination] * (lv2_volume+2)
-            mk_num = combination_usage[combination] * (lv2_volume+2)
+            design_df.at[index, 'Req_volume'] = combination_usage[combination] * (lv2_volume+lv2_deadvol)
+            mk_num = combination_usage[combination] * (lv2_volume+lv2_deadvol)
             design_df.at[index, 'mk_num'] = int(mk_num/total_vol) + (mk_num%total_vol > 0)
             design_df.at[index, 'mk_vol'] = (int(mk_num/total_vol) + (mk_num%total_vol > 0)) * total_vol 
     
@@ -524,13 +569,17 @@ if uploaded_file is not None:
             design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
             designs.append(design_with_note)
 
+    designs_plate_num = int((len(designs)-0.5)/96)+1
 
     for i in range(3):
         st.write("")
 
     with st.expander("Design details"):
         st.write(designs)
-
+    
+    
+    for i in range(10):
+        st.write("")
 
     ###################################################################################################
 
@@ -565,7 +614,10 @@ if uploaded_file is not None:
 
     # Janus 프로토콜 생성
     if device == "Janus":
-        dplate1_name = st.text_input("Destination Plate Name", value="dest_01")
+        plate_len = int((len(designs)-0.5)/96+1)
+        dplate1_name = []
+        for i in range(plate_len):
+            dplate1_name.append(st.text_input("Destination Plate Name", value="dest_01"))
         with st.expander("Janus protocol"):
             protocol, lv1_outputs = generate_janus_protocol(designs, dplate1_name, sources)
             st.write("generated mapping:")
@@ -581,7 +633,6 @@ if uploaded_file is not None:
 
     st.write("### Lv2")
 
-    dplate2_name = st.text_input(label = "Destination Plate Name", value = "Dest_02", )
 
     designs2 = []
     
@@ -597,10 +648,17 @@ if uploaded_file is not None:
             row_design += lv2_commons
             designs2.append(row_design)
 
-    st.write(len(designs2))
+    design2_plate_num = int((len(designs2)-0.5)/96)+1
+    st.session_state.design2_len = len(designs2)
+    # st.write(design2_plate_num)
+    
     with st.expander("lv2_details"):
         st.write(designs2)
-    
+        
+    dplate2_name = []
+    for i in range(design2_plate_num):
+        dplate2_name.append(st.text_input(label = f"Destination Plate Name {i}", value = f"Dest_02_{i+1}"))
+    st.write(sources)
     # Combine sources and lv1_outputs
     combined_sources = pd.concat([sources, lv1_outputs])
     # Generate Janus protocol for Lv2
