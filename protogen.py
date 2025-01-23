@@ -558,12 +558,11 @@ if uploaded_file is not None:
 ################################################################################
 
 
-
     # Convert DataFrame to designs format
     designs = []
     for _, row in design_df.iterrows():
         row_volume = sum(vols[col] * row["mk_num"] for col in range(4)) + sum(common['volume'] * row["mk_num"] for common in commons)
-        row_repeat = int(row_volume/50)
+        row_repeat = int((row_volume-0.5)/50) + 1
         for i in range(row_repeat):
             row_design = []
             for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
@@ -627,9 +626,9 @@ if uploaded_file is not None:
         with st.expander("Janus protocol"):
             protocol, lv1_outputs = generate_janus_protocol(designs, dplate1_name, sources)
             st.write("generated mapping:")
-            st.write(protocol)
+            st.write(protocol.reset_index())
             st.write("generated output plate:")
-            st.write(lv1_outputs)
+            st.write(lv1_outputs.reset_index())
             st.write("updated sources")
             st.write(sources)
     for i in range(7):
