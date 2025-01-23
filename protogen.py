@@ -384,7 +384,7 @@ if uploaded_file is not None:
         with col1:
             selected_name = st.text_input(label="name", key=f"selectname_{row}", label_visibility="collapsed", value= "GGAmix")
         with col2:
-            volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
+            volume = st.number_input(label="vol", value=2., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
         with col3:
             stock_plate = st.text_input(label="source plate", key = f"common_source_plate_{row}", label_visibility = "collapsed", value = "Stockplate2")
         with col4:
@@ -411,7 +411,7 @@ if uploaded_file is not None:
     cols_placeholder = st.columns(cols)
     for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
         with cols_placeholder[col]:
-            vols.append(st.number_input(label=category, value=1., step=0.1, min_value=0., key=f"vols_{col}"))
+            vols.append(st.number_input(label=category, value=2., step=0.1, min_value=0., key=f"vols_{col}"))
 
     # 총 볼륨 계산
     total_vol = sum(common['volume'] for common in commons) + sum(vols)
@@ -469,6 +469,8 @@ if uploaded_file is not None:
     for common in lv2_commons:
         reqvol = st.session_state.design2_len*common['volume']
         st.warning(f"total {reqvol}ul of {common['name']} required")
+    if lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > 50:
+        st.error(f"Total volume({lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>50ul)!")
 
 ####### 우선 lv1의 designs를 기반으로 TU output 만든 다음 lv2 디자인 생성
 ####### 그리고 나서 필요량 피드백 & volum update
@@ -559,20 +561,20 @@ if uploaded_file is not None:
 
     # Convert DataFrame to designs format
     designs = []
-    
     for _, row in design_df.iterrows():
-
-        
-        row_design = []
-        for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
-            if row[category] != "":
-                row_design.append({'name': row[category], 'volume': vols[col]*row["mk_num"]})
-        for common in commons:
-            common_a = {'name': common['name'], 'volume': common['volume'] * row["mk_num"]}
-            row_design += [common_a]
-        for repeat in range(user_defined_groups_roa[user_defined_groups.index(row["Group"])]):
-            design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
-            designs.append(design_with_note)
+        row_volume = sum(vols[col] * row["mk_num"] for col in range(4)) + sum(common['volume'] * row["mk_num"] for common in commons)
+        row_repeat = int(row_volume/50)
+        for i in range(row_repeat):
+            row_design = []
+            for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+                if row[category] != "":
+                    row_design.append({'name': row[category], 'volume': vols[col]*row["mk_num"]/row_repeat})
+            for common in commons:
+                common_a = {'name': common['name'], 'volume': common['volume'] * row["mk_num"]/row_repeat}
+                row_design += [common_a]
+            for repeat in range(user_defined_groups_roa[user_defined_groups.index(row["Group"])]):
+                design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
+                designs.append(design_with_note)
 
     designs_plate_num = int((len(designs)-0.5)/96)+1
 
@@ -581,7 +583,6 @@ if uploaded_file is not None:
 
     with st.expander("Design details"):
         st.write(designs)
-    
     
     for i in range(10):
         st.write("")
@@ -663,7 +664,6 @@ if uploaded_file is not None:
     dplate2_name = []
     for i in range(design2_plate_num):
         dplate2_name.append(st.text_input(label = f"Destination Plate Name {i}", value = f"Dest_02_{i+1}"))
-    st.write(sources)
     # Combine sources and lv1_outputs
     combined_sources = pd.concat([sources, lv1_outputs])
     # Generate Janus protocol for Lv2
