@@ -5,8 +5,8 @@ liquid handler protocol generator
 
 ####  2024-10-08 최초 버전
 - Stocking plate 포맷 기준 설정
-- Plate가 sheet 단위로 구분될 것
-- 첫 번째 [A] cell 기준으로 정렬될 것
+    - Plate가 sheet 단위로 구분될 것
+    - 첫 번째 [A] cell 기준으로 정렬될 것
 - 기본 사용법 정리
     - OT2-7.py 실행 방법 안내 (streamlit run OT2-7.py)
     - 필요 라이브러리 설치 방법 (pip install streamlit, pip install pandas)
