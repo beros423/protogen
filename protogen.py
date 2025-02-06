@@ -309,7 +309,6 @@ if uploaded_file is not None:
             cols_placeholder = st.columns(cols)
 
             selected_items = {}
-
             for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
                 with cols_placeholder[col]:
                     if category == "Connector":
@@ -470,8 +469,8 @@ if uploaded_file is not None:
     for common in lv2_commons:
         reqvol = st.session_state.design2_len*common['volume']
         st.warning(f"total {reqvol}ul of {common['name']} required")
-    # if lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > 50:
-    #     st.warning(f"Total volume({lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>50ul)!")
+    if lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > 50:
+        st.error(f"Total volume({lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>50ul)!")
 
 ####### 우선 lv1의 designs를 기반으로 TU output 만든 다음 lv2 디자인 생성
 ####### 그리고 나서 필요량 피드백 & volum update
@@ -559,6 +558,7 @@ if uploaded_file is not None:
 ################################################################################
 
 
+    # Convert DataFrame to designs format
     designs = []
     for _, row in design_df.iterrows():
         row_volume = sum(vols[col] * row["mk_num"] for col in range(4)) + sum(common['volume'] * row["mk_num"] for common in commons)
@@ -575,25 +575,6 @@ if uploaded_file is not None:
                 design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
                 designs.append(design_with_note)
 
-    
-    # 통합된 디자인 생성
-    unique_designs = {}
-    for design in designs:
-        key = tuple(sorted((item['name'], item['volume']) for item in design if item['name'] != 'note'))
-        if key not in unique_designs:
-            unique_designs[key] = design
-        else:
-            for item in design:
-                if item['name'] != 'note':
-                    for existing_item in unique_designs[key]:
-                        if existing_item['name'] == item['name']:
-                            existing_item['volume'] = item['volume']
-                            break
-
-    # 통합된 디자인 리스트로 변환
-    designs = list(unique_designs.values())
-
-
     designs_plate_num = int((len(designs)-0.5)/96)+1
 
     for i in range(3):
@@ -609,8 +590,8 @@ if uploaded_file is not None:
 
     st.write("## Outputs")
     st.write("#### Lv1")
-    # with st.expander("Design detail for lv1"):
-    #     st.dataframe(design_df)
+    with st.expander("Design detail for lv1"):
+        st.dataframe(design_df)
 
     ### LV1 protocol generate
     device = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device')
