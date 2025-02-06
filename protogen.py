@@ -587,7 +587,7 @@ if uploaded_file is not None:
                 if item['name'] != 'note':
                     for existing_item in unique_designs[key]:
                         if existing_item['name'] == item['name']:
-                            existing_item['volume'] += item['volume']
+                            existing_item['volume'] = item['volume']
                             break
 
     # 통합된 디자인 리스트로 변환
