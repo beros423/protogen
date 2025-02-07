@@ -180,7 +180,8 @@ if uploaded_file != None:
     st.write(protocol)
     st.write("generated output plate:")
     st.write(lv1_outputs)
-
+    st.write("updated sources")
+    st.write(sources_janus)
 
     ########################################################################################################
     ########################################################################################################
