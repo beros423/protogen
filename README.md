@@ -1,58 +1,110 @@
-# protogen
-liquid handler protocol generator
+# Protogen
 
-## updates
+Protogen is a Streamlit-based application for automating liquid handling protocols for Opentrons OT-2 and Janus robotic systems. It facilitates the creation of protocols for assembling DNA constructs, allowing users to define components, volumes, and well locations.
 
-####  2024-10-08 최초 버전
-- Stocking plate 포맷 기준 설정
-    - Plate가 sheet 단위로 구분될 것
-    - 첫 번째 [A] cell 기준으로 정렬될 것
-- 기본 사용법 정리
-    - OT2-7.py 실행 방법 안내 (streamlit run OT2-7.py)
-    - 필요 라이브러리 설치 방법 (pip install streamlit, pip install pandas)
-- Destination plate 관련 제한사항 안내
-    - 현재 assembly 개수 증가 시 row는 A 고정, column만 증가
-- 기본적인 OT2 프로토콜 적용
+## Features
 
+- **Automated OT-2 & Janus protocol generation**
+- **Excel-based component import**
+- **Customizable labware and liquid handling settings**
+- **Real-time feedback on required volumes**
+- **Group-based assembly management**
 
-####  2024-10-21 업데이트
-- 파트 자동인식 규칙 설정
-    - Promoter: P
-    - CDS: C
-    - Connector: N
-    - Terminator: T
-    - Connector 시작부품: S, 끝부품: E
-- Connector 자동설정
-- Row 추가 시 자동으로 적절한 옵션 선택
-- Connector가 없을 경우 마지막 part 반복
-- End part list 분리 → 마지막 Connector 자동 설정 기능 추가 예정
-- Protocol 버그 수정  
-- Protocol 파일 자동 생성 기능 추가
-    - OT2-7.py가 있는 폴더에 OT2_protocol.py 파일 생성
-  
-> OT-2 simulate 테스트 완료
+## Installation
 
-####  2024-10-21 (추가 업데이트)
-- 자동인식 규칙 수정
-    - (P), (T), (N), (C) → Stocking plate 참고
-- Connector 자동설정 및 선택 비활성화
-- Editable Table 추가 (sample 수정 가능, volume & concentration 임시값 설정)
-- Common Parts 추가 가능
-    - ex) GGA mixture
-- Source plate에서 categorize되지 않은 파트도 인식
-- 각 파트별 volume 설정 추가
-- 일부 기능 수정 (fx 수정)
-- Source volume 부족 시 다음 well로 이동하는 기능 추가(그래도 부족하면 에러 표시)
-- Protocol에 간단한 주석 추가 (어떤 작업이 수행되는지 명시)
+Ensure you have Python installed (recommended: Python 3.8 or higher), then install dependencies:
 
-추가 논의 필요:
-Source plate 데이터 입력 방식 개선 필요 (현재 동일 volume 가정)
-농도 기준 계산 방식 도입 고려 가능 (Assembly Design에서 concentration 지정)
-UI 개선 필요 (정리 방안 아이디어 요청)
+```sh
+pip install streamlit pandas opentrons openpyxl
+```
 
-#### 2024-11-12 업데이트
-- Plate 읽을 때 volume 일괄설정 기능 추가 (임시)
-- 파트 선택 방식을 조합형으로 변경
-    - 여러 파트를 선택할 수 있으며, 결과물의 경우 해당 파트들로 가능한 모든 조합을 출력
+## Usage
 
-####  2024-11-
+Run the application using:
+
+```sh
+streamlit run protogen.py
+```
+
+## UI Overview & Input Data Format
+
+### 1. File Upload (Input File Format)
+Protogen uses Excel files (`.xlsx`) as input. Each sheet should contain a 96-well plate format table where each cell represents a well and contains the component name at that position. Example:
+
+|    | A  | B  | C  | ...|
+|----|----|----|----|----|
+| 1  | P1 | C1 | T1 |    |
+| 2  | P2 | C2 | T2 |    |
+| 3  | P3 | C3 | T3 |    |
+| ...|
+
+- Each well (A1, B1, C1, etc.) contains a component name (e.g., Promoter, CDS, Terminator).
+- Empty cells indicate unused wells.
+- Plate names and components are mapped automatically.
+
+### 2. Plate & Volume Settings
+- Set plate names from the uploaded file.
+- Configure default volumes for each well.
+- Automatically assign initial volumes to components.
+
+### 3. Lv1 Assembly Design
+#### Inputs
+- **Group Setup**: Define groups containing transcription units (TUs).
+- **TU Design**: Select Promoter, CDS, Terminator, and Connector.
+- **Volume Configuration**: Specify the volume used per component in each TU.
+- **Common Reagents**: Add common reagents such as GGAmix.
+
+#### Calculation Process
+- Extract required components from the uploaded plate and generate assembly combinations.
+- Calculate the required volume for each component and determine the minimum batch size.
+- If total volume exceeds 50µL, distribute into multiple batches accordingly.
+
+### 4. Lv2 Assembly Design
+#### Inputs
+- **TU List from Lv1 Output**
+- **Lv2 Volume Configuration**: Define required volume per TU and dead volume.
+- **Additional Common Reagents**: Add additional reagents such as vectors.
+
+#### Calculation Process
+- Track TU usage from Lv1 and generate non-overlapping combinations for groups.
+- Determine the number of times each TU is used and calculate required volume.
+- Determine total preparation requirements for the experiment.
+
+### 5. Protocol Generation & Output Files
+- **Select OT-2 or Janus**: Choose the robotic system to use.
+- **Auto-generate Protocols**: Generate OT-2 or Janus protocols based on user settings.
+- **Review Outputs**: Verify the final well locations and reagent usage details.
+
+## Output Files
+
+- **OT-2 Protocol**: A Python script formatted for Opentrons.
+- **Janus Protocol**: A structured CSV file for Hamilton Janus.
+- **Updated Stock Information**: A DataFrame with updated volume calculations.
+
+## Example Workflow
+
+1. Upload your `plate_sample.xlsx` file.
+2. Set up well positions and default volume values.
+3. Define TU and group settings.
+4. Review the volume calculations.
+5. Select OT-2 or Janus and generate protocols.
+6. Save and run the generated protocol on your robotic system.
+
+## Troubleshooting
+
+- If the program warns about insufficient volume, check and update stock volumes in the Excel file.
+- If OT-2 scripts fail, verify API compatibility (e.g., `apiLevel: 2.17`).
+- Ensure correct plate definitions in your OT-2 setup.
+
+## License
+
+This project is licensed under the MIT License.
+
+## Contributing
+
+Feel free to submit issues or pull requests to improve the tool!
+
+---
+
+Developed for laboratory automation workflows.
+
