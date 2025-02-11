@@ -26,16 +26,16 @@ Run the application using:
 streamlit run protogen.py
 ```
 
-## UI Overview & Input Data Format
+## UI Overview
 
 ### 1. File Upload (Input File Format)
 Protogen uses Excel files (`.xlsx`) as input. Each sheet should contain a 96-well plate format table where each cell represents a well and contains the component name at that position. Example:
 
 |    | A  | B  | C  | ...|
 |----|----|----|----|----|
-| 1  | P1 | C1 | T1 |    |
-| 2  | P2 | C2 | T2 |    |
-| 3  | P3 | C3 | T3 |    |
+| 1  | (P)1 | (C)1 | (T)1 |    |
+| 2  | (P)2 | (C)2 | (T)2 |    |
+| 3  | (P)3 | (C)3 | (T)3 |    |
 | ...|
 
 - Each well (A1, B1, C1, etc.) contains a component name (e.g., Promoter, CDS, Terminator).
