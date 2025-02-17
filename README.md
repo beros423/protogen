@@ -1,10 +1,10 @@
-# Protogen
+# Protogen 
 
 Protogen is a Streamlit-based application for automating liquid handling protocols for Opentrons OT-2 and Janus robotic systems. It facilitates the creation of protocols for assembling DNA constructs, allowing users to define components, volumes, and well locations.
 
 ## Features
 
-- **Automated OT-2 & Janus protocol generation**
+- **Automated OT-2 protocol or Janus mapping generation for **
 - **Excel-based component import**
 - **Customizable labware and liquid handling settings**
 - **Real-time feedback on required volumes**
@@ -29,7 +29,7 @@ streamlit run protogen.py
 ## UI Overview
 
 ### 1. File Upload (Input File Format)
-Protogen uses Excel files (`.xlsx`) as input. Each sheet should contain a 96-well plate format table where each cell represents a well and contains the component name at that position. Example:
+The generator uses Excel files (`.xlsx`) as input. Each sheet should contain a 96-well plate format table where each cell represents a well and contains the component name at that position. Example:
 
 |    | A  | B  | C  | ...|
 |----|----|----|----|----|
