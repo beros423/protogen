@@ -1,110 +1,109 @@
-# Protogen 
+# Protogen
 
-Protogen is a Streamlit-based application for automating liquid handling protocols for Opentrons OT-2 and Janus robotic systems. It facilitates the creation of protocols for assembling DNA constructs, allowing users to define components, volumes, and well locations.
+Protogen is a Streamlit application for automating liquid handling protocols for Opentrons OT-2 and Janus robotic systems.  
+It generates protocols for DNA assembly and allows users to intuitively define components, volumes, and well positions.
 
 ## Features
 
-- **Automated OT-2 protocol or Janus mapping generation for **
-- **Excel-based component import**
-- **Customizable labware and liquid handling settings**
-- **Real-time feedback on required volumes**
-- **Group-based assembly management**
+- **Excel-based source plate loading**
+- **Effimodular experimental design**
+- **Automatic OT-2 and Janus protocol/mapping generation**
+- **Required volume and plate feedback**
 
 ## Installation
-
-Ensure you have Python installed (recommended: Python 3.8 or higher), then install dependencies:
+Protogen is written in Python 3.9.
 
 ```sh
 pip install streamlit pandas opentrons openpyxl
 ```
 
 ## Usage
-
-Run the application using:
+Run the following command:
 
 ```sh
 streamlit run protogen.py
 ```
 
-## UI Overview
-
 ### 1. File Upload (Input File Format)
-The generator uses Excel files (`.xlsx`) as input. Each sheet should contain a 96-well plate format table where each cell represents a well and contains the component name at that position. Example:
+Protogen uses Excel files (`.xlsx`) as input. Each sheet contains a table in a 96-well plate format, with the name of the corresponding component recorded in each well.
 
-|    | A  | B  | C  | ...|
-|----|----|----|----|----|
-| 1  | (P)1 | (C)1 | (T)1 |    |
-| 2  | (P)2 | (C)2 | (T)2 |    |
-| 3  | (P)3 | (C)3 | (T)3 |    |
-| ...|
+|    | 1  | 2  | 3  | ...  | 12|
+|----|----|----|----|----|----|
+| A  | (P)1 | (C)1 | (T)1 |    |
+| B  | (P)2 | (C)2 | (T)2 |    |
+| C  | (P)3 | (C)3 | (T)3 |    |
+| ...|||||
+| H  |(P)8|(C)8|(T)8|||  
 
-- Each well (A1, B1, C1, etc.) contains a component name (e.g., Promoter, CDS, Terminator).
-- Empty cells indicate unused wells.
-- Plate names and components are mapped automatically.
+- Each well (e.g., A1, B1, C1) contains the names of TU Parts such as Promoter, CDS, and Terminator.  
+- Unused wells should be left empty.  
+- Each Part is categorized using a header (P, C, T, N) at the beginning of its name, allowing the system to recognize Part positions automatically.  
+- Parts with identical names are treated as the same Part.  
 
-### 2. Plate & Volume Settings
-- Set plate names from the uploaded file.
-- Configure default volumes for each well.
-- Automatically assign initial volumes to components.
+|Header|Part|
+|----|---------|
+|(P)| Promoter |
+|(C)| CDS |
+|(T)| Terminator |
+|(N)| Connector |
 
-### 3. Lv1 Assembly Design
-#### Inputs
-- **Group Setup**: Define groups containing transcription units (TUs).
-- **TU Design**: Select Promoter, CDS, Terminator, and Connector.
-- **Volume Configuration**: Specify the volume used per component in each TU.
-- **Common Reagents**: Add common reagents such as GGAmix.
+### 2. Plate and Volume Settings
+![](imgs/image.png)  
 
-#### Calculation Process
-- Extract required components from the uploaded plate and generate assembly combinations.
-- Calculate the required volume for each component and determine the minimum batch size.
-- If total volume exceeds 50µL, distribute into multiple batches accordingly.
+- Assign a name to each plate from the uploaded file.  
+- Set a common volume for wells without volume data.  
+
+### 3. Lv1 Design
+#### Groups
+![](imgs/image-2.png)  
+
+This function enables multi-plasmid design. Each group is designed independently.  
+- **Number of groups**: Defines the number of groups dividing the Transcription Unit (TU).  
+- **Group names**: Assigns names to each group (duplicates may cause errors).  
+- **Number of TU**: Specifies the number of TU each group contains.  
+
+#### TU Design
+![](imgs/image-3.png)  
+- Defines detailed TU specifications for each group.  
+- Each TU includes one CDS, and if multiple Promoters or Terminators are specified, all possible combinations are calculated to proceed with Lv2 Design.  
+- Overlapping Part combinations are excluded.  
+- Connectors are fixed.  
+
+#### Volume Setting
+![](imgs/image-4.png)  
+- **Common parts**: Defines Parts to be included in all TU.  
+    - Use ![](imgs/image-5.png) and ![](imgs/image-6.png) to add or remove Parts.  
+    - Part names can be freely assigned, and the specified stock plate and stock location are used to load the corresponding Part.  
+    - **If the Part name overlaps with an already loaded stock plate, conflicts may occur.**  
+    - Entering the Name and Volume calculates the total required amount based on the number of Lv1 designs.  
+
+![](imgs/image-8.png)  
+- **TU Parts**: Sets the volume for each Part (unit: µL).  
+    - The total volume for each TU is calculated after setting.  
 
 ### 4. Lv2 Assembly Design
-#### Inputs
-- **TU List from Lv1 Output**
-- **Lv2 Volume Configuration**: Define required volume per TU and dead volume.
-- **Additional Common Reagents**: Add additional reagents such as vectors.
 
-#### Calculation Process
-- Track TU usage from Lv1 and generate non-overlapping combinations for groups.
-- Determine the number of times each TU is used and calculate required volume.
-- Determine total preparation requirements for the experiment.
+- **Lv2 Volume Setting**: Defines the volume per TU and the dead volume for Lv2 assembly.  
+    - Each combination includes the defined volume per TU.  
+![](imgs/image-7.png)  
+- **Common Parts**: Defines Parts to be included in all TU.  
+    - Use ![](imgs/image-5.png) and ![](imgs/image-6.png) to add or remove Parts.  
+    - Part names can be freely assigned, and the specified stock plate and stock location are used to load the corresponding Part.  
+    - **If the Part name overlaps with an already loaded stock plate, conflicts may occur.**  
+    - Entering the Name and Volume calculates the total required amount based on the number of Lv2 designs.  
 
-### 5. Protocol Generation & Output Files
-- **Select OT-2 or Janus**: Choose the robotic system to use.
-- **Auto-generate Protocols**: Generate OT-2 or Janus protocols based on user settings.
-- **Review Outputs**: Verify the final well locations and reagent usage details.
+##### Calculation Method  
+Each TU contains one CDS. If multiple Promoters or Terminators are specified, all possible combinations are calculated to generate the Lv2 Design.  
 
-## Output Files
+- In the given example, 1+2\*2+3\*2 = 11 TU designs are created.  
 
-- **OT-2 Protocol**: A Python script formatted for Opentrons.
-- **Janus Protocol**: A structured CSV file for Hamilton Janus.
-- **Updated Stock Information**: A DataFrame with updated volume calculations.
+![](imgs/image-9.png)  
 
-## Example Workflow
-
-1. Upload your `plate_sample.xlsx` file.
-2. Set up well positions and default volume values.
-3. Define TU and group settings.
-4. Review the volume calculations.
-5. Select OT-2 or Janus and generate protocols.
-6. Save and run the generated protocol on your robotic system.
-
-## Troubleshooting
-
-- If the program warns about insufficient volume, check and update stock volumes in the Excel file.
-- If OT-2 scripts fail, verify API compatibility (e.g., `apiLevel: 2.17`).
-- Ensure correct plate definitions in your OT-2 setup.
-
-## License
-
-This project is licensed under the MIT License.
-
-## Contributing
-
-Feel free to submit issues or pull requests to improve the tool!
-
----
-
-Developed for laboratory automation workflows.
+### 5. Outputs
+- **Select OT-2 or Janus**: Choose the robotic system to execute.  
+- **Automatic protocol generation**: Generates OT-2 or Janus protocols based on selected settings.  
+- **Check outputs**: Review final output well positions and used reagents.  
+    - **OT-2 Protocol**: Python script formatted for execution on Opentrons.  
+    - **Janus Protocol**: CSV mapping file for Hamilton Janus.  
+    - **Updated inventory data**: Dataframe with updated volume calculations.  
 

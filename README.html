@@ -82,62 +82,63 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="protogen" class="level1">
 <h1>Protogen</h1>
-<p>Protogen is a Streamlit-based application for automating liquid handling protocols for Opentrons OT-2 and Janus robotic systems. It facilitates the creation of protocols for assembling DNA constructs, allowing users to define components, volumes, and well locations.</p>
+<p>Protogen is a Streamlit application for automating liquid handling protocols for Opentrons OT-2 and Janus robotic systems.<br>
+It generates protocols for DNA assembly and allows users to intuitively define components, volumes, and well positions.</p>
 <section id="features" class="level2">
 <h2 class="anchored" data-anchor-id="features">Features</h2>
 <ul>
-<li><strong>Automated OT-2 &amp; Janus protocol generation</strong></li>
-<li><strong>Excel-based component import</strong></li>
-<li><strong>Customizable labware and liquid handling settings</strong></li>
-<li><strong>Real-time feedback on required volumes</strong></li>
-<li><strong>Group-based assembly management</strong></li>
+<li><strong>Excel-based source plate loading</strong></li>
+<li><strong>Effimodular experimental design</strong></li>
+<li><strong>Automatic OT-2 and Janus protocol/mapping generation</strong></li>
+<li><strong>Required volume and plate feedback</strong></li>
 </ul>
 </section>
 <section id="installation" class="level2">
 <h2 class="anchored" data-anchor-id="installation">Installation</h2>
-<p>Ensure you have Python installed (recommended: Python 3.8 or higher), then install dependencies:</p>
+<p>Protogen is written in Python 3.9.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install streamlit pandas opentrons openpyxl</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 <section id="usage" class="level2">
 <h2 class="anchored" data-anchor-id="usage">Usage</h2>
-<p>Run the application using:</p>
+<p>Run the following command:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">streamlit</span> run protogen.py</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</section>
-<section id="ui-overview" class="level2">
-<h2 class="anchored" data-anchor-id="ui-overview">UI Overview</h2>
 <section id="file-upload-input-file-format" class="level3">
 <h3 class="anchored" data-anchor-id="file-upload-input-file-format">1. File Upload (Input File Format)</h3>
-<p>Protogen uses Excel files (<code>.xlsx</code>) as input. Each sheet should contain a 96-well plate format table where each cell represents a well and contains the component name at that position. Example:</p>
+<p>Protogen uses Excel files (<code>.xlsx</code>) as input. Each sheet contains a table in a 96-well plate format, with the name of the corresponding component recorded in each well.</p>
 <table class="table">
 <thead>
 <tr class="header">
 <th></th>
-<th>A</th>
-<th>B</th>
-<th>C</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
 <th>…</th>
+<th>12</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>1</td>
+<td>A</td>
 <td>(P)1</td>
 <td>(C)1</td>
 <td>(T)1</td>
 <td></td>
+<td></td>
 </tr>
 <tr class="even">
-<td>2</td>
+<td>B</td>
 <td>(P)2</td>
 <td>(C)2</td>
 <td>(T)2</td>
 <td></td>
+<td></td>
 </tr>
 <tr class="odd">
-<td>3</td>
+<td>C</td>
 <td>(P)3</td>
 <td>(C)3</td>
 <td>(T)3</td>
+<td></td>
 <td></td>
 </tr>
 <tr class="even">
@@ -146,107 +147,140 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td></td>
 <td></td>
 <td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>H</td>
+<td>(P)8</td>
+<td>(C)8</td>
+<td>(T)8</td>
+<td></td>
+<td></td>
 </tr>
 </tbody>
 </table>
 <ul>
-<li>Each well (A1, B1, C1, etc.) contains a component name (e.g., Promoter, CDS, Terminator).</li>
-<li>Empty cells indicate unused wells.</li>
-<li>Plate names and components are mapped automatically.</li>
+<li>Each well (e.g., A1, B1, C1) contains the names of TU Parts such as Promoter, CDS, and Terminator.<br>
+</li>
+<li>Unused wells should be left empty.<br>
+</li>
+<li>Each Part is categorized using a header (P, C, T, N) at the beginning of its name, allowing the system to recognize Part positions automatically.<br>
+</li>
+<li>Parts with identical names are treated as the same Part.</li>
+</ul>
+<table class="table">
+<thead>
+<tr class="header">
+<th>Header</th>
+<th>Part</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>(P)</td>
+<td>Promoter</td>
+</tr>
+<tr class="even">
+<td>(C)</td>
+<td>CDS</td>
+</tr>
+<tr class="odd">
+<td>(T)</td>
+<td>Terminator</td>
+</tr>
+<tr class="even">
+<td>(N)</td>
+<td>Connector</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="plate-and-volume-settings" class="level3">
+<h3 class="anchored" data-anchor-id="plate-and-volume-settings">2. Plate and Volume Settings</h3>
+<p><img src="imgs/image.png" class="img-fluid"></p>
+<ul>
+<li>Assign a name to each plate from the uploaded file.<br>
+</li>
+<li>Set a common volume for wells without volume data.</li>
 </ul>
 </section>
-<section id="plate-volume-settings" class="level3">
-<h3 class="anchored" data-anchor-id="plate-volume-settings">2. Plate &amp; Volume Settings</h3>
-<ul>
-<li>Set plate names from the uploaded file.</li>
-<li>Configure default volumes for each well.</li>
-<li>Automatically assign initial volumes to components.</li>
-</ul>
+<section id="lv1-design" class="level3">
+<h3 class="anchored" data-anchor-id="lv1-design">3. Lv1 Design</h3>
+<section id="groups" class="level4">
+<h4 class="anchored" data-anchor-id="groups">Groups</h4>
+<p><img src="imgs/image-2.png" class="img-fluid"></p>
+<p>This function enables multi-plasmid design. Each group is designed independently.<br>
+- <strong>Number of groups</strong>: Defines the number of groups dividing the Transcription Unit (TU).<br>
+- <strong>Group names</strong>: Assigns names to each group (duplicates may cause errors).<br>
+- <strong>Number of TU</strong>: Specifies the number of TU each group contains.</p>
 </section>
-<section id="lv1-assembly-design" class="level3">
-<h3 class="anchored" data-anchor-id="lv1-assembly-design">3. Lv1 Assembly Design</h3>
-<section id="inputs" class="level4">
-<h4 class="anchored" data-anchor-id="inputs">Inputs</h4>
-<ul>
-<li><strong>Group Setup</strong>: Define groups containing transcription units (TUs).</li>
-<li><strong>TU Design</strong>: Select Promoter, CDS, Terminator, and Connector.</li>
-<li><strong>Volume Configuration</strong>: Specify the volume used per component in each TU.</li>
-<li><strong>Common Reagents</strong>: Add common reagents such as GGAmix.</li>
-</ul>
+<section id="tu-design" class="level4">
+<h4 class="anchored" data-anchor-id="tu-design">TU Design</h4>
+<p><img src="imgs/image-3.png" class="img-fluid"><br>
+- Defines detailed TU specifications for each group.<br>
+- Each TU includes one CDS, and if multiple Promoters or Terminators are specified, all possible combinations are calculated to proceed with Lv2 Design.<br>
+- Overlapping Part combinations are excluded.<br>
+- Connectors are fixed.</p>
 </section>
-<section id="calculation-process" class="level4">
-<h4 class="anchored" data-anchor-id="calculation-process">Calculation Process</h4>
-<ul>
-<li>Extract required components from the uploaded plate and generate assembly combinations.</li>
-<li>Calculate the required volume for each component and determine the minimum batch size.</li>
-<li>If total volume exceeds 50µL, distribute into multiple batches accordingly.</li>
-</ul>
+<section id="volume-setting" class="level4">
+<h4 class="anchored" data-anchor-id="volume-setting">Volume Setting</h4>
+<p><img src="imgs/image-4.png" class="img-fluid"><br>
+- <strong>Common parts</strong>: Defines Parts to be included in all TU.<br>
+- Use <img src="imgs/image-5.png" class="img-fluid"> and <img src="imgs/image-6.png" class="img-fluid"> to add or remove Parts.<br>
+- Part names can be freely assigned, and the specified stock plate and stock location are used to load the corresponding Part.<br>
+- <strong>If the Part name overlaps with an already loaded stock plate, conflicts may occur.</strong><br>
+- Entering the Name and Volume calculates the total required amount based on the number of Lv1 designs.</p>
+<p><img src="imgs/image-8.png" class="img-fluid"><br>
+- <strong>TU Parts</strong>: Sets the volume for each Part (unit: µL).<br>
+- The total volume for each TU is calculated after setting.</p>
 </section>
 </section>
 <section id="lv2-assembly-design" class="level3">
 <h3 class="anchored" data-anchor-id="lv2-assembly-design">4. Lv2 Assembly Design</h3>
-<section id="inputs-1" class="level4">
-<h4 class="anchored" data-anchor-id="inputs-1">Inputs</h4>
 <ul>
-<li><strong>TU List from Lv1 Output</strong></li>
-<li><strong>Lv2 Volume Configuration</strong>: Define required volume per TU and dead volume.</li>
-<li><strong>Additional Common Reagents</strong>: Add additional reagents such as vectors.</li>
+<li><strong>Lv2 Volume Setting</strong>: Defines the volume per TU and the dead volume for Lv2 assembly.
+<ul>
+<li>Each combination includes the defined volume per TU.<br>
+<img src="imgs/image-7.png" class="img-fluid"><br>
+</li>
+</ul></li>
+<li><strong>Common Parts</strong>: Defines Parts to be included in all TU.
+<ul>
+<li>Use <img src="imgs/image-5.png" class="img-fluid"> and <img src="imgs/image-6.png" class="img-fluid"> to add or remove Parts.<br>
+</li>
+<li>Part names can be freely assigned, and the specified stock plate and stock location are used to load the corresponding Part.<br>
+</li>
+<li><strong>If the Part name overlaps with an already loaded stock plate, conflicts may occur.</strong><br>
+</li>
+<li>Entering the Name and Volume calculates the total required amount based on the number of Lv2 designs.</li>
+</ul></li>
+</ul>
+<section id="calculation-method" class="level5">
+<h5 class="anchored" data-anchor-id="calculation-method">Calculation Method</h5>
+<p>Each TU contains one CDS. If multiple Promoters or Terminators are specified, all possible combinations are calculated to generate the Lv2 Design.</p>
+<ul>
+<li>In the given example, 1+2*2+3*2 = 11 TU designs are created.</li>
+</ul>
+<p><img src="imgs/image-9.png" class="img-fluid"></p>
+</section>
+</section>
+<section id="outputs" class="level3">
+<h3 class="anchored" data-anchor-id="outputs">5. Outputs</h3>
+<ul>
+<li><strong>Select OT-2 or Janus</strong>: Choose the robotic system to execute.<br>
+</li>
+<li><strong>Automatic protocol generation</strong>: Generates OT-2 or Janus protocols based on selected settings.<br>
+</li>
+<li><strong>Check outputs</strong>: Review final output well positions and used reagents.
+<ul>
+<li><strong>OT-2 Protocol</strong>: Python script formatted for execution on Opentrons.<br>
+</li>
+<li><strong>Janus Protocol</strong>: CSV mapping file for Hamilton Janus.<br>
+</li>
+<li><strong>Updated inventory data</strong>: Dataframe with updated volume calculations.</li>
+</ul></li>
 </ul>
 </section>
-<section id="calculation-process-1" class="level4">
-<h4 class="anchored" data-anchor-id="calculation-process-1">Calculation Process</h4>
-<ul>
-<li>Track TU usage from Lv1 and generate non-overlapping combinations for groups.</li>
-<li>Determine the number of times each TU is used and calculate required volume.</li>
-<li>Determine total preparation requirements for the experiment.</li>
-</ul>
-</section>
-</section>
-<section id="protocol-generation-output-files" class="level3">
-<h3 class="anchored" data-anchor-id="protocol-generation-output-files">5. Protocol Generation &amp; Output Files</h3>
-<ul>
-<li><strong>Select OT-2 or Janus</strong>: Choose the robotic system to use.</li>
-<li><strong>Auto-generate Protocols</strong>: Generate OT-2 or Janus protocols based on user settings.</li>
-<li><strong>Review Outputs</strong>: Verify the final well locations and reagent usage details.</li>
-</ul>
-</section>
-</section>
-<section id="output-files" class="level2">
-<h2 class="anchored" data-anchor-id="output-files">Output Files</h2>
-<ul>
-<li><strong>OT-2 Protocol</strong>: A Python script formatted for Opentrons.</li>
-<li><strong>Janus Protocol</strong>: A structured CSV file for Hamilton Janus.</li>
-<li><strong>Updated Stock Information</strong>: A DataFrame with updated volume calculations.</li>
-</ul>
-</section>
-<section id="example-workflow" class="level2">
-<h2 class="anchored" data-anchor-id="example-workflow">Example Workflow</h2>
-<ol type="1">
-<li>Upload your <code>plate_sample.xlsx</code> file.</li>
-<li>Set up well positions and default volume values.</li>
-<li>Define TU and group settings.</li>
-<li>Review the volume calculations.</li>
-<li>Select OT-2 or Janus and generate protocols.</li>
-<li>Save and run the generated protocol on your robotic system.</li>
-</ol>
-</section>
-<section id="troubleshooting" class="level2">
-<h2 class="anchored" data-anchor-id="troubleshooting">Troubleshooting</h2>
-<ul>
-<li>If the program warns about insufficient volume, check and update stock volumes in the Excel file.</li>
-<li>If OT-2 scripts fail, verify API compatibility (e.g., <code>apiLevel: 2.17</code>).</li>
-<li>Ensure correct plate definitions in your OT-2 setup.</li>
-</ul>
-</section>
-<section id="license" class="level2">
-<h2 class="anchored" data-anchor-id="license">License</h2>
-<p>This project is licensed under the MIT License.</p>
-</section>
-<section id="contributing" class="level2">
-<h2 class="anchored" data-anchor-id="contributing">Contributing</h2>
-<p>Feel free to submit issues or pull requests to improve the tool!</p>
-<hr>
-<p>Developed for laboratory automation workflows.</p>
 </section>
 </section>
 
