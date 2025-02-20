@@ -62,7 +62,7 @@ def run(protocol: protocol_api.ProtocolContext):
             group_counters[group_name] += 1  # 기존 그룹이면 인덱스 증가
 
         output_design = {
-            'name': f"{design[0]["name"]}-{design[1]["name"]}-{design[2]["name"]}",
+            'name': f"{design[0]["name"]}-{design[1]["name"]}-{design[2]["name"]}-{design[3]["name"]}",
             'plate': "dest_01",
             'well': destination,
             'volume': 0,
@@ -134,7 +134,7 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
         }
 
         output_row = {
-            "name": f"{design[0]["name"]}-{design[1]["name"]}-{design[2]["name"]}" if naming == "TU" else f"{group_name}_{group_counters[group_name]}",
+            "name": f"{design[0]["name"]}-{design[1]["name"]}-{design[2]["name"]}-{design[3]["name"]}" if naming == "TU" else f"{group_name}_{group_counters[group_name]}",
             "plate": dest_name,
             "well": destination,
             "volume": 0,
@@ -366,7 +366,7 @@ if uploaded_file is not None:
                 }])], ignore_index=True)
         selected_group.append(selected_row)
     
-
+    design2_list = []
     for group_no, group_df in design_df.groupby('Group'):
         TU_list = []
         for connector_no, connector_group in group_df.groupby('Connector'):
@@ -377,18 +377,26 @@ if uploaded_file is not None:
         for item in product(*TU_list):
             elements = [elem for sublist in item for elem in sublist.values()]
             if len(set(elements)) == 4*user_defined_groups_nop[group_no]:
-                for k in range(user_defined_groups_nop[group_no]):
+                design2_list.append([group_no, item])
+                for k in range(user_defined_groups_nop[group_no]):  
                     design_df.loc[
                         (design_df['Promoter'] == item[k]['P']) &
                         (design_df['CDS'] == item[k]['C']) &
                         (design_df['Terminator'] == item[k]['T']) &
-                        (design_df['Connector'] == item[k]['N']),
+                        (design_df['Connector'] == item[k]['N']) &
+                        (design_df['Group'] == group_no),
                         'tu_usage'
                     ] += 1
 
-
-    st.write(design_df)
-
+    # st.write(design_df)
+    # Group by the relevant columns and sum the 'tu_usage' column
+    design_df = design_df.groupby(["Promoter", "CDS", "Terminator", "Connector"]).agg({
+        "Group": "first",
+        "tu_usage": "sum"
+    }).reset_index()
+    st.warning(f"{len(design_df)} of TU, {len(design2_list)} of Lv2 design")
+    # st.write(design_df)
+    # st.write(design2_list)
 
 
 
@@ -433,16 +441,16 @@ if uploaded_file is not None:
                 stock_code = st.text_input(label="stock location", key = f"common_stock_location_{row}", label_visibility = "collapsed", value = "", disabled = name_exist)
             commons.append({'name': selected_name, 'volume': volume})
 
+            reqvol = design_df['tu_usage'].sum()*volume
             # Create a DataFrame for the common part and add it to sources
             common_data = pd.DataFrame([{
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': st.session_state.total_mk*volume,
+                'volume': reqvol, 
                 'note': 'common'
             }])
 
-            reqvol = st.session_state.total_mk*volume
             if selected_name in sources['name'].values:
                 current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
                 if current_vol > reqvol:
@@ -510,15 +518,17 @@ if uploaded_file is not None:
             with col4:
                 stock_code = st.text_input(label="stock location", key = f"common2_stock_location_{row}", label_visibility = "collapsed", value = "A2")
             lv2_commons.append({'name': selected_name, 'volume': volume})
+            
+            reqvol = len(design2_list)*volume
+            
             common_data = pd.DataFrame([{
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': st.session_state.design2_len*volume,
+                'volume': reqvol*volume,
                 'note': 'common'
             }])
             
-            reqvol = st.session_state.design2_len*volume
             if selected_name in sources['name'].values:
                 current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
                 if current_vol > reqvol:
@@ -536,107 +546,23 @@ if uploaded_file is not None:
 
             for common in lv2_commons:
                 if lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > 50:
-                    st.error(f"Total volume({lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>50ul)!")
-
-        ####### 우선 lv1의 designs를 기반으로 TU output 만든 다음 lv2 디자인 생성
-        ####### 그리고 나서 필요량 피드백 & volum update
-        ################################################################################
-        ################################################################################
-
-        def track_combination_usage(groups):
-            # 각 그룹에서 한 개씩 아이템을 뽑을 때 각 조합들이 사용된 횟수를 추적합니다.
-            for group in groups:
-                for item in group:
-                    if item in combination_usage:
-                        combination_usage[item] += 1
-                    else:
-                        combination_usage[item] = 1
-
-        # 그룹 A, B에서 세부 요소가 겹치지 않도록 선택 가능한 조합을 계산
-        def calculate_distinct_combinations(groups):
-            total_combinations = 0
-            valid_combinations = []
-
-            # 각 집합에서 가능한 모든 조합을 뽑아서 비교합니다
-            for selected_items in product(*groups):  # groups는 집합들의 리스트
-                # 각 선택된 조합을 세부 요소들로 나누어 비교
-                selected_elements = [set(item.split('-')) for item in selected_items]
-
-                # 모든 집합에서 뽑은 요소들이 겹치지 않으면 유효한 조합
-                is_valid = True
-                for i, elem_set in enumerate(selected_elements):
-                    for j in range(i + 1, len(selected_elements)):
-                        if not elem_set.isdisjoint(selected_elements[j]):  # 교집합이 있으면 안됨
-                            is_valid = False
-                            break
-                    if not is_valid:
-                        break
-
-                # 유효한 조합일 경우
-                if is_valid:
-                    valid_combinations.append(selected_items)
-                    total_combinations += 1
-
-            return total_combinations, valid_combinations
-
-        combination_usage = {}
-        valid_combination_list = []
-        for group in selected_group:
-            # 각 그룹의 세부 요소들을 정의
-            
-            promoters = [TU["Promoter"] for TU in group]
-            cdss = [TU["CDS"] for TU in group]
-            terminators = [TU["Terminator"] for TU in group]
-            # st.write(promoters, cdss, terminators)
-            # 그룹 A, B에서 가능한 조합 생성
-            groups = []
-            for i in range(len(group)):
-                groups.append([f"{a}-{b}-{c}" for a, b, c in product(promoters[i], cdss[i], terminators[i])])
-                
-            # 겹치지 않는 조합을 계산
-            total_combinations, valid_combinations = calculate_distinct_combinations(groups)
-
-            # 유효한 조합에서 각 조합이 몇 번 사용되는지 추적
-            track_combination_usage(valid_combinations)
-            valid_combination_list.append(valid_combinations)
-            # st.write("총 가능한 유효한 조합의 수:", total_combinations)
-            # st.write("유효한 조합들:", valid_combinations)
-            # st.write("각 조합이 사용된 횟수:", combination_usage)
-
-        # 각 조합이 사용된 횟수를 designs_df의 파트 조합에 맞는 row에 column으로 추가
-        design_df['TU_Usage'] = 0
-        design_df['Req_volume'] = 0
-        design_df['mk_num'] = 0
-        design_df['mk_vol'] = 0
-
-        for index, row in design_df.iterrows():
-            combination = f"{row['Promoter']}-{row['CDS']}-{row['Terminator']}"
-            if combination in combination_usage:
-                design_df.at[index, 'TU_Usage'] = combination_usage[combination]
-                design_df.at[index, 'Req_volume'] = combination_usage[combination] * (lv2_volume+lv2_deadvol)
-                mk_num = combination_usage[combination] * (lv2_volume+lv2_deadvol)
-                design_df.at[index, 'mk_num'] = int(mk_num/total_vol) + (mk_num%total_vol > 0)
-                design_df.at[index, 'mk_vol'] = (int(mk_num/total_vol) + (mk_num%total_vol > 0)) * total_vol 
-        
-        st.session_state.total_mk = sum(design_df["mk_num"])
-            
-    ################################################################################
-    ################################################################################
+                    st.warning(f"Total volume({lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>50ul)!")
 
 
         # Convert DataFrame to designs format
         designs = []
         for _, row in design_df.iterrows():
-            row_volume = sum(vols[col] * row["mk_num"] for col in range(4)) + sum(common['volume'] * row["mk_num"] for common in commons)
+            row_volume = sum(vols[col] * row["tu_usage"] for col in range(4)) + sum(common['volume'] * row["tu_usage"] for common in commons)
+            ## 몇개를 해야 하는지..
             row_repeat = int((row_volume-0.5)/50) + 1
-            st.write(row)
+            # st.write(row)
             for i in range(row_repeat):
                 row_design = []
                 for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
                     if row[category] != "":
-                        row_design.append({'name': row[category], 'volume': vols[col]*row["mk_num"]/row_repeat})
+                        row_design.append({'name': row[category], 'volume': vols[col]*row["tu_usage"]/row_repeat})
                 for common in commons:
-                    common_a = {'name': common['name'], 'volume': common['volume'] * row["mk_num"]/row_repeat}
+                    common_a = {'name': common['name'], 'volume': common['volume'] * row["tu_usage"]/row_repeat}
                     row_design += [common_a]
                 for repeat in range(user_defined_groups_roa[row["Group"]]):
                     design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
@@ -653,7 +579,7 @@ if uploaded_file is not None:
         for i in range(10):
             st.write("")
 
-        ###################################################################################################
+        #####################################################################################################
 
         st.write("## Outputs")
         st.write("#### Lv1")
@@ -708,23 +634,31 @@ if uploaded_file is not None:
         ###################################################################################################
         st.write("### Lv2")
 
-
         designs2 = []
         
-        for g, comb in enumerate(valid_combination_list): # group
-            for i, item in enumerate(comb):               # combination
-                row_design = []
-                for n in item:                            # items
-                    name = n
-                    volume = lv2_volume
-                    note = user_defined_groups[g]
+        for comb in design2_list: # group
+            group, items = comb
+            row_design = []
+            for item in items:
+                item_name = item['P']+"-"+item['C']+"-"+item['T']+"-"+item['N']
+                volume = lv2_volume
+                note = user_defined_groups[group]
 
-                    row_design.append({'name': name, 'volume': volume, 'note':note})
-                row_design += lv2_commons
-                designs2.append(row_design)
+                row_design.append({'name':item_name, 'volume':volume, 'note':note})
+            #     name = n
+            #     volume = lv2_volume
+            #     note = user_defined_groups[group]
+            row_design += lv2_commons
+            designs2.append(row_design)
+
+            #     row_design.append({'name': name, 'volume': volume, 'note':note})
+            # row_design += lv2_commons
+            # designs2.append(row_design)
+
+        ###################################################################################################
 
         design2_plate_num = int((len(designs2)-0.5)/96)+1
-        st.session_state.design2_len = len(designs2)
+        # st.session_state.design2_len = len(designs2)
         # st.write(design2_plate_num)
         
         dplate2_name = []
@@ -748,4 +682,4 @@ if uploaded_file is not None:
 
 
         # debugging area
-        st.write(designs2)
+        # st.write(designs2)
