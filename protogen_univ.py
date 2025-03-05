@@ -13,7 +13,7 @@ st.set_page_config(layout = "wide")
 
 uploaded_file = st.file_uploader("Upload your Stocking Plate CSV file", type="csv")
 if uploaded_file == None:
-    uploaded_file = "./Source_for_goldengate-PCR.csv"
+    uploaded_file = "./2025-03-05T02-05_export.csv.csv"
 
 # try:
 #     sourceplate_name = st.text_input("Sourceplate name", value = os.path.splitext(os.path.basename(uploaded_file))[0])
@@ -31,11 +31,11 @@ if uploaded_file != None:
     sources = pd.DataFrame(columns = ["type", "name","plate", "well", "volume","note"])
     
     sources['type'] = df['type']
-    sources['name'] = df['Name']
-    sources['plate'] = st.text_input("Sourceplate name", value = sourceplate_name)
-    sources['well'] = df['Source Well']
-    sources['volume'] = df['Vol']
-    sources['note'] = df.iloc[:, 5]
+    sources['name'] = df['name']
+    sources['plate'] = df['plate']
+    sources['well'] = df['well']
+    sources['volume'] = df['volume']
+    sources['note'] = df['note']
 
     st.dataframe(sources)
 
