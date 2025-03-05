@@ -21,7 +21,7 @@ if uploaded_file == None:
 
 sourceplate_name = "source"
 
-st.write(uploaded_file)
+# st.write(uploaded_file)
 if uploaded_file != None:
     df = pd.read_csv(uploaded_file, encoding = "euc-kr")
     # st.write(df)
