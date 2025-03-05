@@ -48,7 +48,7 @@ Protogen uses Excel files (`.xlsx`) as input. Each sheet contains a table in a 9
 |(N)| Connector |
 
 ### 2. Plate and Volume Settings
-![](imgs/image.png)  
+![](imgs/image.png)
 
 - Assign a name to each plate from the uploaded file.  
 - Set a common volume for wells without volume data.  
