@@ -13,7 +13,7 @@ st.set_page_config(layout = "wide")
 
 uploaded_file = st.file_uploader("Upload your Stocking Plate CSV file", type="csv")
 if uploaded_file == None:
-    uploaded_file = "./2025-03-05T02-05_export.csv.csv"
+    uploaded_file = "./2025-03-05T02-05_export.csv"
 # try:
 #     sourceplate_name = st.text_input("Sourceplate name", value = os.path.splitext(os.path.basename(uploaded_file))[0])
 # except:
