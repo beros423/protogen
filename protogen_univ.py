@@ -14,7 +14,6 @@ st.set_page_config(layout = "wide")
 uploaded_file = st.file_uploader("Upload your Stocking Plate CSV file", type="csv")
 if uploaded_file == None:
     uploaded_file = "./2025-03-05T02-05_export.csv.csv"
-
 # try:
 #     sourceplate_name = st.text_input("Sourceplate name", value = os.path.splitext(os.path.basename(uploaded_file))[0])
 # except:
@@ -22,7 +21,7 @@ if uploaded_file == None:
 
 sourceplate_name = "source"
 
-# st.write(uploaded_file)
+st.write(uploaded_file)
 if uploaded_file != None:
     df = pd.read_csv(uploaded_file, encoding = "euc-kr")
     # st.write(df)
