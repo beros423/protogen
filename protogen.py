@@ -554,7 +554,7 @@ if uploaded_file is not None:
         for _, row in design_df.iterrows():
             row_volume = sum(vols[col] * row["tu_usage"] for col in range(4)) + sum(common['volume'] * row["tu_usage"] for common in commons)
             ## 몇개를 해야 하는지..
-            row_repeat = int((row_volume-0.5)/50) + 1
+            row_repeat = int((row_volume-0.5)/(50-lv2_deadvol)) + 1
             # st.write(row)
             for i in range(row_repeat):
                 row_design = []
