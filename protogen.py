@@ -555,20 +555,20 @@ if uploaded_file is not None:
 
         st.write(design_df)
         designs = []
-        st.write(f"total volume: {total_vol}ul")
-        st.write(f"volume for each well = {50 - lv2_deadvol}")
         tu_per_single_well = int((50-lv2_deadvol)/total_vol)
-        st.write(f"max tu in single well = {tu_per_single_well}")
+        # st.write(f"total volume: {total_vol}ul")
+        # st.write(f"volume for each well = {50 - lv2_deadvol}")
+        # st.write(f"max tu in single well = {tu_per_single_well}")
         for _, row in design_df.iterrows():
             row_useage = row["tu_usage"]
-            st.write(row_useage)
+            # st.write(row_useage)
             while row_useage > 0:
                 if row_useage >= tu_per_single_well:
                     tu_con = tu_per_single_well
                 else:
                     tu_con = row_useage
                 row_useage -= tu_con
-                st.write(row_useage)
+                # st.write(row_useage)
                 
                 row_design = []
                 for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
@@ -605,8 +605,8 @@ if uploaded_file is not None:
         # for i in range(3):
         #     st.write("")
 
-        with st.expander("Design details"):
-            st.write(designs)
+        # with st.expander("Design details"):
+        #     st.write(designs)
         
         for i in range(10):
             st.write("")
