@@ -441,13 +441,15 @@ if uploaded_file is not None:
                 stock_code = st.text_input(label="stock location", key = f"common_stock_location_{row}", label_visibility = "collapsed", value = "", disabled = name_exist)
             commons.append({'name': selected_name, 'volume': volume})
 
+            ## 이거 source에 있으면 deadvolume 추가해서 계산할 것.
             reqvol = design_df['tu_usage'].sum()*volume
+            
             # Create a DataFrame for the common part and add it to sources
             common_data = pd.DataFrame([{
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': reqvol, 
+                'volume': reqvol+2, 
                 'note': 'common'
             }])
 
@@ -550,8 +552,11 @@ if uploaded_file is not None:
 
 
         # Convert DataFrame to designs format
+
+        # st.write(design_df)
         designs = []
         for _, row in design_df.iterrows():
+            # pass
             row_volume = sum(vols[col] * row["tu_usage"] for col in range(4)) + sum(common['volume'] * row["tu_usage"] for common in commons)
             ## 몇개를 해야 하는지..
             row_repeat = int((row_volume-0.5)/(50-lv2_deadvol)) + 1
@@ -567,6 +572,8 @@ if uploaded_file is not None:
                 for repeat in range(user_defined_groups_roa[row["Group"]]):
                     design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
                     designs.append(design_with_note)
+
+
 
         designs_plate_num = int((len(designs)-0.5)/96)+1
 
@@ -585,6 +592,7 @@ if uploaded_file is not None:
         st.write("#### Lv1")
         # with st.expander("Design detail for lv1"):
         #     st.dataframe(design_df)
+        #     st.write("Total TU useage: ", sum(design_df['tu_usage']))
 
         ### LV1 protocol generate
         device = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device')
@@ -657,29 +665,60 @@ if uploaded_file is not None:
 
         ###################################################################################################
 
-        design2_plate_num = int((len(designs2)-0.5)/96)+1
-        # st.session_state.design2_len = len(designs2)
-        # st.write(design2_plate_num)
+        device2 = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device2')
+
+        # OT2 프로토콜 생성
+        if device2 == "OT2":
+            plate_len = int((len(designs)-0.5)/96+1)
+            if plate_len > 1:
+                st.error("OT2 does not support multiple destinations yet..\nPlease use Janus protocol")
+            else:
+                with st.expander("OT2 protocol"):
+                    metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata", key="meta2").replace("\n", "\n    ")
+                    requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements", key="req2")
+
+                    plate_posit = []
+                    for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
+                        position = st.selectbox(options=range(1, 12), label=f"{plate} position:", key=f"pos2_{i}_{plate}")
+                        plate_posit.append([plate, position])
+                    plate_posit.append(["destination", st.selectbox(options=range(1, 12), label="destination_rack position:", index=i+1, key = "dest_pos2")])
+                    plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="tibrack position:", index=i+2, key = "tip_pos2")])
+
+                    protocol, lv1_outputs = generate_ot2_protocol(designs, plate_posit, metadata, requirements, sources)
+                    
+                    st.write("generated protocol:")
+                    st.code(protocol, language='python')
+                    st.write("generated output plate:")
+                    st.write(lv1_outputs)
+                    st.write("updated sources")
+                    st.write(sources)
+
+
+        if device2 == 'Janus':
+            ### janus mapping generate
+            design2_plate_num = int((len(designs2)-0.5)/96)+1
+            # st.session_state.design2_len = len(designs2)
+            # st.write(design2_plate_num)
         
-        dplate2_name = []
-        for i in range(design2_plate_num):
-            dplate2_name.append(st.text_input(label = f"Destination Plate Name {i+1}", value = f"Dest_02_{i+1}"))
-        # Combine sources and lv1_outputs
-        combined_sources = pd.concat([sources, lv1_outputs])
-        # Generate Janus protocol for Lv2
-        protocol2, lv2_outputs = generate_janus_protocol(designs2, dplate2_name, combined_sources, naming="note")
-        # Separate sources and lv1_outputs
-        sources = combined_sources[combined_sources['name'].isin(sources['name'])].iloc[:, :6]
-        lv1_outputs = combined_sources[combined_sources['name'].isin(lv1_outputs['name'])]
-        
+            dplate2_name = []
+            for i in range(design2_plate_num):
+                dplate2_name.append(st.text_input(label = f"Destination Plate Name {i+1}", value = f"Dest_02_{i+1}"))
+            # Combine sources and lv1_outputs
+            combined_sources = pd.concat([sources, lv1_outputs])
+            # Generate Janus protocol for Lv2
+            protocol2, lv2_outputs = generate_janus_protocol(designs2, dplate2_name, combined_sources, naming="note")
+            # Separate sources and lv1_outputs
+            sources = combined_sources[combined_sources['name'].isin(sources['name'])].iloc[:, :6]
+            lv1_outputs = combined_sources[combined_sources['name'].isin(lv1_outputs['name'])]
+            
+            
+            st.write("Janus mapping")
+            st.write(protocol2.reset_index(drop=True))
+            st.write("Final output plate")
+            st.write(lv2_outputs.reset_index(drop=True))
+            st.write("Updated Sources")
+            st.write(sources)
 
-        st.write("Janus mapping")
-        st.write(protocol2.reset_index(drop=True))
-        st.write("Final output plate")
-        st.write(lv2_outputs.reset_index(drop=True))
-        st.write("Updated Sources")
-        st.write(sources)
 
-
-        # debugging area
-        # st.write(designs2)
+            # debugging area
+            # st.write(designs2)
