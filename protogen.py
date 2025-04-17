@@ -655,9 +655,9 @@ if uploaded_file is not None:
             with st.expander("Janus protocol"):
                 protocol, lv1_outputs = generate_janus_protocol(designs, dplate1_name, sources)
                 st.write("generated mapping:")
-                st.write(protocol.reset_index(drop=True))
+                st.write(protocol)
                 st.write("generated output plate:")
-                st.write(lv1_outputs.reset_index(drop=True))
+                st.write(lv1_outputs)
                 st.write("updated sources")
                 st.write(sources)
         for i in range(7):
