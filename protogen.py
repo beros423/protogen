@@ -449,7 +449,7 @@ if uploaded_file is not None:
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': reqvol+2, 
+                'volume': reqvol*2, 
                 'note': 'common'
             }])
 
@@ -489,7 +489,7 @@ if uploaded_file is not None:
         st.write("> Volume for each TU (*Deadvolume)")
         col1, col2 = st.columns([7,2])
         with col1:
-            lv2_volume = st.number_input(label = "Lv2 volume for each TU", min_value = 0., value = 8., step = 0.1, label_visibility="collapsed")
+            lv2_volume = st.number_input(label = "Lv2 volume for each TU", min_value = 0., value = total_vol, step = 0.1, label_visibility="collapsed", disabled=True)
         with col2:
             lv2_deadvol = st.number_input(label = "Dead volume for each TU", min_value = 0., value = 2., step = 0.1, label_visibility="collapsed")
 
@@ -553,25 +553,50 @@ if uploaded_file is not None:
 
         # Convert DataFrame to designs format
 
-        # st.write(design_df)
+        st.write(design_df)
         designs = []
+        st.write(f"total volume: {total_vol}ul")
+        st.write(f"volume for each well = {50 - lv2_deadvol}")
+        tu_per_single_well = int((50-lv2_deadvol)/total_vol)
+        st.write(f"max tu in single well = {tu_per_single_well}")
         for _, row in design_df.iterrows():
-            # pass
-            row_volume = sum(vols[col] * row["tu_usage"] for col in range(4)) + sum(common['volume'] * row["tu_usage"] for common in commons)
-            ## 몇개를 해야 하는지..
-            row_repeat = int((row_volume-0.5)/(50-lv2_deadvol)) + 1
-            # st.write(row)
-            for i in range(row_repeat):
+            row_useage = row["tu_usage"]
+            st.write(row_useage)
+            while row_useage > 0:
+                if row_useage >= tu_per_single_well:
+                    tu_con = tu_per_single_well
+                else:
+                    tu_con = row_useage
+                row_useage -= tu_con
+                st.write(row_useage)
+                
                 row_design = []
                 for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
                     if row[category] != "":
-                        row_design.append({'name': row[category], 'volume': vols[col]*row["tu_usage"]/row_repeat})
+                        row_design.append({'name': row[category], 'volume': vols[col]*tu_con+(lv2_deadvol*vols[col]/total_vol)})
                 for common in commons:
-                    common_a = {'name': common['name'], 'volume': common['volume'] * row["tu_usage"]/row_repeat}
+                    common_a = {'name': common['name'], 'volume': common['volume']*tu_con+(lv2_deadvol*common['volume']/total_vol)}
                     row_design += [common_a]
                 for repeat in range(user_defined_groups_roa[row["Group"]]):
                     design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
                     designs.append(design_with_note)
+            
+            # total_vol = (sum(common['volume'] for common in commons) + sum(vols))*row["tu_usage"]
+            # row_volume = sum(vols[col] * row["tu_usage"] for col in range(4)) + sum(common['volume'] * row["tu_usage"] for common in commons)
+            # ## 몇개를 해야 하는지..
+            # row_repeat = int((row_volume-0.5)/(50-lv2_deadvol)) + 1
+            # # st.write(row)
+            # for i in range(row_repeat):
+            #     row_design = []
+            #     for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+            #         if row[category] != "":
+            #             row_design.append({'name': row[category], 'volume': vols[col]*row["tu_usage"]/row_repeat})
+            #     for common in commons:
+            #         common_a = {'name': common['name'], 'volume': common['volume'] * row["tu_usage"]/row_repeat}
+            #         row_design += [common_a]
+            #     for repeat in range(user_defined_groups_roa[row["Group"]]):
+            #         design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
+            #         designs.append(design_with_note)
 
 
 
@@ -580,8 +605,8 @@ if uploaded_file is not None:
         # for i in range(3):
         #     st.write("")
 
-        # with st.expander("Design details"):
-        #     st.write(designs)
+        with st.expander("Design details"):
+            st.write(designs)
         
         for i in range(10):
             st.write("")
