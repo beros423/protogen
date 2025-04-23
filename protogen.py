@@ -177,7 +177,12 @@ if "commons_row" not in st.session_state:
     st.session_state.commons_row = 1  # 초기 행 수 설정
 if "commons_row2" not in st.session_state:
     st.session_state.commons_row2 = 1  # 초기 행 수 설정
-
+if "lv1_length" not in st.session_state:
+    st.session_state.lv1_length = 0
+if "total_vol" not in st.session_state:
+    st.session_state.total_vol = 0
+if "lv2_deadvol" not in st.session_state:
+    st.session_state.lv2_deadvol = 0
 
 # 파일 업로드 및 데이터 처리
 uploaded_file = st.file_uploader("Upload your Stocking Plate Excel file", type="xlsx")
@@ -441,15 +446,21 @@ if uploaded_file is not None:
                 stock_code = st.text_input(label="stock location", key = f"common_stock_location_{row}", label_visibility = "collapsed", value = "", disabled = name_exist)
             commons.append({'name': selected_name, 'volume': volume})
 
-            ## 이거 source에 있으면 deadvolume 추가해서 계산할 것.
-            reqvol = design_df['tu_usage'].sum()*volume
+            ## 이거 deadvolume 추가해서 계산할 것.
+            if st.session_state.total_vol > 0:
+                common_deadvol = st.session_state.lv1_length * (volume / st.session_state.total_vol) * st.session_state.lv2_deadvol
+            else:
+                st.error("Total volume is zero. Please ensure valid input for total volume.")
+                common_deadvol = 0
+            # st.write(common_deadvol)
+            reqvol = design_df['tu_usage'].sum()*volume + common_deadvol
             
             # Create a DataFrame for the common part and add it to sources
             common_data = pd.DataFrame([{
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': reqvol*2, 
+                'volume': reqvol+10, 
                 'note': 'common'
             }])
 
@@ -478,7 +489,7 @@ if uploaded_file is not None:
         # 총 볼륨 계산
         total_vol = sum(common['volume'] for common in commons) + sum(vols)
         st.success(f"total {total_vol}ul of each TU")
-
+        st.session_state.total_vol = total_vol
         for _ in range(2):
             st.write("")
 
@@ -492,7 +503,7 @@ if uploaded_file is not None:
             lv2_volume = st.number_input(label = "Lv2 volume for each TU", min_value = 0., value = total_vol, step = 0.1, label_visibility="collapsed", disabled=True)
         with col2:
             lv2_deadvol = st.number_input(label = "Dead volume for each TU", min_value = 0., value = 2., step = 0.1, label_visibility="collapsed")
-
+        st.session_state.lv2_deadvol = lv2_deadvol
         lv2_commons = []
 
         col1, col2, col3 = st.columns([2, 1, 8])
@@ -655,15 +666,16 @@ if uploaded_file is not None:
             with st.expander("Janus protocol"):
                 protocol, lv1_outputs = generate_janus_protocol(designs, dplate1_name, sources)
                 st.write("generated mapping:")
-                st.write(protocol)
+                st.write(protocol.reset_index(drop=True))
                 st.write("generated output plate:")
-                st.write(lv1_outputs)
+                st.write(lv1_outputs.reset_index(drop=True))
                 st.write("updated sources")
                 st.write(sources)
         for i in range(7):
             st.write("")
 
-
+        st.session_state.lv1_length = len(lv1_outputs)
+        
         ###################################################################################################
         st.write("### Lv2")
 
@@ -734,8 +746,7 @@ if uploaded_file is not None:
             protocol2, lv2_outputs = generate_janus_protocol(designs2, dplate2_name, combined_sources, naming="note")
             # Separate sources and lv1_outputs
             sources = combined_sources[combined_sources['name'].isin(sources['name'])].iloc[:, :6]
-            lv1_outputs = combined_sources[combined_sources['name'].isin(lv1_outputs['name'])]
-            
+            lv1_outputs = combined_sources[combined_sources['name'].isin(lv1_outputs['name'])]           
             
             st.write("Janus mapping")
             st.write(protocol2.reset_index(drop=True))
