@@ -455,13 +455,13 @@ if uploaded_file is not None:
                 common_deadvol = 0
             # st.write(common_deadvol)
             d1reqvol = design_df['tu_usage'].sum()*volume + common_deadvol
-            
+            st.write(d1reqvol)
             # Create a DataFrame for the common part and add it to sources
             common_data = pd.DataFrame([{
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': d1reqvol*100, 
+                'volume': 100000, 
                 'note': 'common'
             }])
 
