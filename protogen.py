@@ -428,6 +428,7 @@ if uploaded_file is not None:
         with col3: 
             if st.button('del') and st.session_state.commons_row > 1:
                 st.session_state.commons_row -= 1
+        
         col1, col2, col3, col4 = st.columns([3,2,2,2])
         with col1: st.write("Part name")
         with col2: st.write("Volume (ul)")
@@ -460,7 +461,7 @@ if uploaded_file is not None:
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': d1reqvol+volume, 
+                'volume': d1reqvol*100, 
                 'note': 'common'
             }])
 
@@ -538,7 +539,7 @@ if uploaded_file is not None:
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': d2reqvol*volume,
+                'volume': d2reqvol*100,
                 'note': 'common'
             }])
             
