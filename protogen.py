@@ -453,28 +453,28 @@ if uploaded_file is not None:
                 st.error("Total volume is zero. Please ensure valid input for total volume.")
                 common_deadvol = 0
             # st.write(common_deadvol)
-            reqvol = design_df['tu_usage'].sum()*volume + common_deadvol
+            d1reqvol = design_df['tu_usage'].sum()*volume + common_deadvol
             
             # Create a DataFrame for the common part and add it to sources
             common_data = pd.DataFrame([{
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': reqvol+volume, 
+                'volume': d1reqvol+volume, 
                 'note': 'common'
             }])
 
             if selected_name in sources['name'].values:
                 current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
-                if current_vol > reqvol:
-                    st.success(f"total {reqvol}ul of {selected_name} required while {current_vol} in sources")
+                if current_vol > d1reqvol:
+                    st.success(f"total {d1reqvol}ul of {selected_name} required while {current_vol} in sources")
                 else:
-                    st.error(f"total {reqvol}ul of {selected_name} required while {current_vol} in sources")
+                    st.error(f"total {d1reqvol}ul of {selected_name} required while {current_vol} in sources")
             else:
                 if stock_plate.strip() == "" or not re.match(r'^[A-Ha-h][1-9]$|^[A-Ha-h]1[0-2]$', stock_code):
                     st.error(f"Please insert correct Stock plate and Stock location \n ex) Stock_plate3, A7")
                 else:
-                    st.warning(f"total {reqvol}ul of {selected_name} required in {stock_plate}, {stock_code}")
+                    st.warning(f"total {d1reqvol}ul of {selected_name} required in {stock_plate}, {stock_code}")
                     sources = pd.concat([sources, common_data], ignore_index=True)
 
 
@@ -532,27 +532,27 @@ if uploaded_file is not None:
                 stock_code = st.text_input(label="stock location", key = f"common2_stock_location_{row}", label_visibility = "collapsed", value = "A2")
             lv2_commons.append({'name': selected_name, 'volume': volume})
             
-            reqvol = len(design2_list)*volume
+            d2reqvol = len(design2_list)*volume
             
             common_data = pd.DataFrame([{
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': reqvol*volume,
+                'volume': d2reqvol*volume,
                 'note': 'common'
             }])
             
             if selected_name in sources['name'].values:
                 current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
-                if current_vol > reqvol:
-                    st.success(f"total {reqvol}ul of {selected_name} required while {current_vol} in sources")
+                if current_vol > d2reqvol:
+                    st.success(f"total {d2reqvol}ul of {selected_name} required while {current_vol} in sources")
                 else:
-                    st.error(f"total {reqvol}ul of {selected_name} required while {current_vol} in sources")
+                    st.error(f"total {d2reqvol}ul of {selected_name} required while {current_vol} in sources")
             else:
                 if stock_plate.strip() == "" or not re.match(r'^[A-Ha-h][1-9]$|^[A-Ha-h]1[0-2]$', stock_code):
                     st.error(f"Please insert correct Stock plate and Stock location \n ex) Stock_plate3, A7")
                 else:
-                    st.warning(f"total {reqvol}ul of {selected_name} required in {stock_plate}, {stock_code}")
+                    st.warning(f"total {d2reqvol}ul of {selected_name} required in {stock_plate}, {stock_code}")
                     sources = pd.concat([sources, common_data], ignore_index=True)
             
             sources = pd.concat([sources, common_data], ignore_index=True)
