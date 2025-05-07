@@ -460,7 +460,7 @@ if uploaded_file is not None:
                 'name': selected_name,
                 'plate': stock_plate,
                 'well': stock_code,
-                'volume': reqvol+10, 
+                'volume': reqvol+volume, 
                 'note': 'common'
             }])
 
