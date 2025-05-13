@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from itertools import product, permutations, combinations
+from itertools import product
 import re
 
 # Streamlit 페이지 설정
@@ -62,7 +62,7 @@ def run(protocol: protocol_api.ProtocolContext):
             group_counters[group_name] += 1  # 기존 그룹이면 인덱스 증가
 
         output_design = {
-            'name': f"{design[0]["name"]}-{design[1]["name"]}-{design[2]["name"]}-{design[3]["name"]}",
+            'name': f"{design[0]['name']}-{design[1]['name']}-{design[2]['name']}-{design[3]['name']}",
             'plate': "dest_01",
             'well': destination,
             'volume': 0,
@@ -112,7 +112,6 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
         # 목적지 웰 설정
         dest_list = ["A", "B", "C", "D", "E", "F", "G", "H"]
         dest_row = int((plate_index-0.5)//12)
-        # st.write(f"plate_num={plate_num}, dest_name={dest_name}, plate_index={plate_index},dest_row={dest_row}")
 
         destination = f"{dest_list[dest_row]}{plate_index - 12 * (dest_row)}"
         
@@ -134,7 +133,7 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
         }
 
         output_row = {
-            "name": f"{design[0]["name"]}-{design[1]["name"]}-{design[2]["name"]}-{design[3]["name"]}" if naming == "TU" else f"{group_name}_{group_counters[group_name]}",
+            "name": f"{design[0]['name']}-{design[1]['name']}-{design[2]['name']}-{design[3]['name']}" if naming == "TU" else f"{group_name}_{group_counters[group_name]}",
             "plate": dest_name,
             "well": destination,
             "volume": 0,
@@ -168,15 +167,21 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
 
     return protocol_rows, output_rows
 
+def validate_stock_location(stock_plate, stock_code):
+    """Stock plate와 location 유효성 검사"""
+    return stock_plate.strip() != "" and re.match(r'^[A-Ha-h][1-9]$|^[A-Ha-h]1[0-2]$', stock_code)
+
+
+
+if "commons_row" not in st.session_state:
+    st.session_state.commons_row = 1  # 초기 행 수 설정
+if "commons_row2" not in st.session_state:
+    st.session_state.commons_row2 = 1  # 초기 행 수 설정
 
 if 'total_mk' not in st.session_state:
     st.session_state.total_mk = 0
 if 'design2_len' not in st.session_state:
     st.session_state.design2_len = 0
-if "commons_row" not in st.session_state:
-    st.session_state.commons_row = 1  # 초기 행 수 설정
-if "commons_row2" not in st.session_state:
-    st.session_state.commons_row2 = 1  # 초기 행 수 설정
 if "lv1_length" not in st.session_state:
     st.session_state.lv1_length = 0
 if "total_vol" not in st.session_state:
@@ -184,6 +189,11 @@ if "total_vol" not in st.session_state:
 if "lv2_deadvol" not in st.session_state:
     st.session_state.lv2_deadvol = 0
 
+
+
+st.title("Assembly Design Tool")
+st.write("This tool is designed to assist in the assembly design process for synthetic biology projects. It allows users to upload an Excel file containing information about parts and their respective volumes, and then generates assembly designs based on user-defined parameters.")
+st.write(">## Input")
 # 파일 업로드 및 데이터 처리
 uploaded_file = st.file_uploader("Upload your Stocking Plate Excel file", type="xlsx")
 if uploaded_file is None:
@@ -248,11 +258,9 @@ if uploaded_file is not None:
     st.write("")
     st.write("")
     st.write("")
-    st.write("## Assembly Design")
+    st.write(">## Assembly Design")
 
-    st.write("### Lv1 Design")
-    
-    st.write("> #### Groups")
+    st.write("### Groups")
     # 사용자에게 그룹 지정 옵션 제공
     user_defined_groups = []
     user_defined_groups_nop = []
@@ -289,7 +297,7 @@ if uploaded_file is not None:
             user_defined_groups_roa.append(group_roa)
 
     # TU designs
-    st.write("> #### TU design")
+    st.write("### TU design")
     designs = []
     
     ## connector 순서 및 그룹 설정
@@ -394,193 +402,202 @@ if uploaded_file is not None:
                     ] += 1
 
     # st.write(design_df)
+    # st.write(design2_list)
     # Group by the relevant columns and sum the 'tu_usage' column
     design_df = design_df.groupby(["Promoter", "CDS", "Terminator", "Connector"]).agg({
         "Group": "first",
         "tu_usage": "sum"
     }).reset_index()
-    st.warning(f"{len(design_df)} of TU, {len(design2_list)} of Lv2 design")
+    st.success(f"{len(design_df)} of TU, {len(design2_list)} of Lv2 design")
     # st.write(design_df)
     # st.write(design2_list)
 
+    # 볼륨 입력
+    st.write("### TU parts")
+    st.write("Specify the volume for each part in the TU design. The default volume is 2ul.")
+    vols = []
+    cols_placeholder = st.columns(cols)
+    for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+        with cols_placeholder[col]:
+            vols.append(st.number_input(label=category, value=2., step=0.1, min_value=0., key=f"vols_{col}"))
 
 
+    # 공통 부품 추가
+    # others = sources[sources['type'].isna()]['name'].drop_duplicates().tolist()
+    commons = []
 
-    ### 세부사항 조정
-    if st.button("Apply", key="apply_button"):
+    col1, col2, col3 = st.columns([3, 1, 8])
+    with col1: st.write("### Lv1 Common parts")
+    st.write('''Specify the plate name and location for the parts to be added as Common Parts in Lv1.  
+             *If the part name exists in the provided source, it will be used.''')
+    with col2: 
+        if st.button('add'):
+            st.session_state.commons_row += 1
+    with col3: 
+        if st.button('del') and st.session_state.commons_row > 1:
+            st.session_state.commons_row -= 1
+    
+    col1, col2, col3, col4 = st.columns([3,2,2,2])
+    with col1: st.write("Part name")
+    with col2: st.write("Volume (ul)")
+    with col3: st.write("Stock plate")
+    with col4: st.write("Stock location (Well)")
+    for row in range(st.session_state.commons_row):
+        col1, col2, col3, col4 = st.columns([3,2,2,2])
+        with col1:
+            selected_name = st.text_input(label="name", key=f"selectname_{row}", label_visibility="collapsed", value= "GGAmixture")
+            name_exist = selected_name in sources['name'].values
+        with col2:
+            volume = st.number_input(label="vol", value=2., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
+        with col3:
+            stock_plate = st.text_input(label="source plate", key = f"common_source_plate_{row}", label_visibility = "collapsed", value = "GGAmix_plate", disabled = name_exist)
+        with col4:
+            stock_code = st.text_input(label="stock location", key = f"common_stock_location_{row}", label_visibility = "collapsed", value = "A1", disabled = name_exist)
+        commons.append({'name': selected_name, 'volume': volume, 'in_source': name_exist, 'plate': stock_plate, 'well': stock_code})
+
+        if selected_name in sources['name'].values:
+            current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
+            st.success(f"{selected_name} detected {current_vol} in sources")
+        elif validate_stock_location(stock_plate, stock_code):
+            st.warning(f"Please ensure {selected_name} is available in {stock_plate}, {stock_code}")
+        else:
+            st.error("Invalid Stock plate or Stock location format. Example) Stock_plate3, A7")
+
+
+    st.write("")
+    # 총 볼륨 계산
+    total_vol = sum(common['volume'] for common in commons) + sum(vols)
+    st.success(f"total {total_vol}ul of each TU")
+    st.session_state.total_vol = total_vol
+
+    ## deadvolume setting
+    st.write("### Deadvolume")
+    st.write("Specify the dead volume of each well in the lv1 output. Recommended to be larger than 2ul.")
+    lv2_deadvol = st.number_input(label = "Dead volume for each TU", min_value = 0., value = 2., step = 0.1, label_visibility="collapsed")
+    st.session_state.lv2_deadvol = lv2_deadvol
+
+    ## lv2 commons
+    lv2_commons = []
+    col1, col2, col3 = st.columns([3, 1, 8])
+    with col1: st.write("### Lv2 Common parts")
+    with col2: 
+        if st.button('add', key = "add2"):
+            st.session_state.commons_row2 += 1
+    with col3: 
+        if st.button('del', key = "del2") and st.session_state.commons_row2 > 1:
+            st.session_state.commons_row2 -= 1
+    st.write('''Specify the plate name and location for the parts to be added as Common Parts in Lv2.  
+             *If the part name exists in the provided source, it will be used.''')
+
+    col1, col2, col3, col4 = st.columns([3,2,2,2])
+    with col1: st.write("Part name")
+    with col2: st.write("Volume (ul)")
+    with col3: st.write("Stock plate")
+    with col4: st.write("Stock location")
+    for row in range(st.session_state.commons_row2):
+        col1, col2, col3, col4 = st.columns([3,2,2,2])
+        with col1:
+            selected_name = st.text_input(label="name", key=f"selectname2_{row}", label_visibility="collapsed", value= "Vector")
+            name_exist = selected_name in sources['name'].values
+        with col2:
+            volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume2_{row}", label_visibility="collapsed")
+        with col3:
+            stock_plate = st.text_input(label="source plate", key = f"common2_source_plate_{row}", label_visibility = "collapsed", value = "Vector_plate", disabled=name_exist)
+        with col4:
+            stock_code = st.text_input(label="stock location", key = f"common2_stock_location_{row}", label_visibility = "collapsed", value = "A1", disabled=name_exist)
+        lv2_commons.append({'name': selected_name, 'volume': volume, 'in_source': name_exist, 'plate': stock_plate, 'well': stock_code})
+        
+        for common in lv2_commons:
+            if total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > 50:
+                st.warning(f"Total volume({total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>50ul)!")
+        
+        if selected_name in sources['name'].values:
+            current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
+            st.success(f"{selected_name} detected {current_vol} in sources")
+        elif validate_stock_location(stock_plate, stock_code):
+            st.warning(f"Please ensure {selected_name} is available in {stock_plate}, {stock_code}")
+        else:
+            st.error("Invalid Stock plate or Stock location format. Example) Stock_plate3, A7")
+
+
+    ## add common parts to sources
+    # Calculate the required volume for each TU
+    design_df['need_vol'] = design_df['tu_usage'] * total_vol
+    # Calculate the number of wells required for each TU
+    design_df['wells_required'] = (design_df['need_vol'] / (50 - lv2_deadvol)).apply(lambda x: int(x) + (x % 1 > 0))
+    design_df['volume_for_each_well'] = design_df['need_vol'] / design_df['wells_required']+lv2_deadvol
+    design_df['total_vol'] = design_df['wells_required'] * design_df['volume_for_each_well']
+    ratepoint = sum(design_df['total_vol'])/total_vol
+
+    for common in commons:
+        if not common['in_source']:
+            common_source = pd.DataFrame([{
+            "name": common['name'],
+            "plate": common['plate'],
+            "well": common['well'],
+            "volume": common['volume']*ratepoint + lv2_deadvol,
+            "note": "common part added"
+            }])
+            st.write(common_source)
+            sources = pd.concat([sources, common_source], ignore_index=True)
+    
+    for common2 in lv2_commons:
+        if not common2['in_source']:
+            common2_source = pd.DataFrame([{
+            "name": common2['name'],
+            "plate": common2['plate'],
+            "well": common2['well'],
+            "volume": common2['volume']* len(design2_list) + lv2_deadvol,
+            "note": "common part added"
+            }])
+            st.write(common2_source)
+            sources = pd.concat([sources, common2_source], ignore_index=True)
+
+    ## summary designs
+    # with st.expander("Summary"):
+    #     st.write(design_df)
+    #     st.write(design2_list)
+    #     st.write(f"Total {len(design_df)} of TU, {len(design2_list)} of Lv2 design")
+    #     st.write(f"total volume for single TU: {total_vol}ul")
+    #     st.write(f"total volume for single Lv2: {total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul")
+    #     st.write(f"lv1_commons: {commons}")
+    #     st.write(f"lv2_deadvol: {lv2_deadvol}ul")
+    #     st.write(f"lv2_commons: {lv2_commons}")
+    #     st.write("")    
+    #     st.write(f"total TU usage: {sum(design_df['tu_usage'])}")
+        
+    #     ## 어..그러니까..
+    #     st.write(f"total volume for all TU: {sum(design_df['total_vol'])}ul")
+    #     st.write(f"ratepoint: {ratepoint}")
+    #     st.write(f"common vol of entire volume: {sum(design_df['total_vol'])*(commons[0]['volume']/total_vol)}ul")
+    #     st.write(design_df)
+    
+
+    for i in range(2):
+        st.write("")
+
+
+    ### generate outputs
+    if st.button("Apply Designs", key="apply_button"):
         st.session_state.apply_clicked = True
 
+    for i in range(5):
+        st.write("")
+
     if st.session_state.get("apply_clicked", False):
-
-        st.write("> #### Volume setting")
-
-        # 공통 부품 추가
-        others = sources[sources['type'].isna()]['name'].drop_duplicates().tolist()
-
-        commons = []
-
-
-        col1, col2, col3 = st.columns([2, 1, 8])
-        with col1: st.write("Common parts")
-        with col2: 
-            if st.button('add'):
-                st.session_state.commons_row += 1
-        with col3: 
-            if st.button('del') and st.session_state.commons_row > 1:
-                st.session_state.commons_row -= 1
         
-        col1, col2, col3, col4 = st.columns([3,2,2,2])
-        with col1: st.write("Part name")
-        with col2: st.write("Volume (ul)")
-        with col3: st.write("Stock plate")
-        with col4: st.write("Stock location (Well)")
-        for row in range(st.session_state.commons_row):
-            col1, col2, col3, col4 = st.columns([3,2,2,2])
-            with col1:
-                selected_name = st.text_input(label="name", key=f"selectname_{row}", label_visibility="collapsed", value= "GGAmixture")
-                name_exist = selected_name in sources['name'].values
-            with col2:
-                volume = st.number_input(label="vol", value=2., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
-            with col3:
-                stock_plate = st.text_input(label="source plate", key = f"common_source_plate_{row}", label_visibility = "collapsed", value = "", disabled = name_exist)
-            with col4:
-                stock_code = st.text_input(label="stock location", key = f"common_stock_location_{row}", label_visibility = "collapsed", value = "", disabled = name_exist)
-            commons.append({'name': selected_name, 'volume': volume})
-
-            ## 이거 deadvolume 추가해서 계산할 것.
-            if st.session_state.total_vol > 0:
-                common_deadvol = st.session_state.lv1_length * (volume / st.session_state.total_vol) * st.session_state.lv2_deadvol
-            else:
-                st.error("Total volume is zero. Please ensure valid input for total volume.")
-                common_deadvol = 0
-            # st.write(common_deadvol)
-            d1reqvol = design_df['tu_usage'].sum()*volume + common_deadvol
-            st.write(d1reqvol)
-            # Create a DataFrame for the common part and add it to sources
-            common_data = pd.DataFrame([{
-                'name': selected_name,
-                'plate': stock_plate,
-                'well': stock_code,
-                'volume': 100000, 
-                'note': 'common'
-            }])
-
-            if selected_name in sources['name'].values:
-                current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
-                if current_vol > d1reqvol:
-                    st.success(f"total {d1reqvol}ul of {selected_name} required while {current_vol} in sources")
-                else:
-                    st.error(f"total {d1reqvol}ul of {selected_name} required while {current_vol} in sources")
-            else:
-                if stock_plate.strip() == "" or not re.match(r'^[A-Ha-h][1-9]$|^[A-Ha-h]1[0-2]$', stock_code):
-                    st.error(f"Please insert correct Stock plate and Stock location \n ex) Stock_plate3, A7")
-                else:
-                    st.warning(f"total {d1reqvol}ul of {selected_name} required in {stock_plate}, {stock_code}")
-                    sources = pd.concat([sources, common_data], ignore_index=True)
-
-
-        # 볼륨 입력
-        st.write("TU parts")
-        vols = []
-        cols_placeholder = st.columns(cols)
-        for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
-            with cols_placeholder[col]:
-                vols.append(st.number_input(label=category, value=2., step=0.1, min_value=0., key=f"vols_{col}"))
-
-        # 총 볼륨 계산
-        total_vol = sum(common['volume'] for common in commons) + sum(vols)
-        st.success(f"total {total_vol}ul of each TU")
-        st.session_state.total_vol = total_vol
-        for _ in range(2):
-            st.write("")
-
-
-        ## lv2 Design
-        st.write("### Lv2 Design")
-
-        st.write("> Volume for each TU (*Deadvolume)")
-        col1, col2 = st.columns([7,2])
-        with col1:
-            lv2_volume = st.number_input(label = "Lv2 volume for each TU", min_value = 0., value = total_vol, step = 0.1, label_visibility="collapsed", disabled=True)
-        with col2:
-            lv2_deadvol = st.number_input(label = "Dead volume for each TU", min_value = 0., value = 2., step = 0.1, label_visibility="collapsed")
-        st.session_state.lv2_deadvol = lv2_deadvol
-        lv2_commons = []
-
-        col1, col2, col3 = st.columns([2, 1, 8])
-        with col1: st.write("> Common parts")
-        with col2: 
-            if st.button('add', key = "add2"):
-                st.session_state.commons_row2 += 1
-        with col3: 
-            if st.button('del', key = "del2") and st.session_state.commons_row2 > 1:
-                st.session_state.commons_row2 -= 1
-
-        col1, col2, col3, col4 = st.columns([3,2,2,2])
-        with col1: st.write("Part name")
-        with col2: st.write("Volume (ul)")
-        with col3: st.write("Stock plate")
-        with col4: st.write("Stock location")
-        for row in range(st.session_state.commons_row2):
-            col1, col2, col3, col4 = st.columns([3,2,2,2])
-            with col1:
-                selected_name = st.text_input(label="name", key=f"selectname2_{row}", label_visibility="collapsed", value= "Vector")
-            with col2:
-                volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume2_{row}", label_visibility="collapsed")
-            with col3:
-                stock_plate = st.text_input(label="source plate", key = f"common2_source_plate_{row}", label_visibility = "collapsed", value = "Stockplate2")
-            with col4:
-                stock_code = st.text_input(label="stock location", key = f"common2_stock_location_{row}", label_visibility = "collapsed", value = "A2")
-            lv2_commons.append({'name': selected_name, 'volume': volume})
-            
-            d2reqvol = len(design2_list)*volume
-            
-            common_data = pd.DataFrame([{
-                'name': selected_name,
-                'plate': stock_plate,
-                'well': stock_code,
-                'volume': d2reqvol*100,
-                'note': 'common'
-            }])
-            
-            if selected_name in sources['name'].values:
-                current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
-                if current_vol > d2reqvol:
-                    st.success(f"total {d2reqvol}ul of {selected_name} required while {current_vol} in sources")
-                else:
-                    st.error(f"total {d2reqvol}ul of {selected_name} required while {current_vol} in sources")
-            else:
-                if stock_plate.strip() == "" or not re.match(r'^[A-Ha-h][1-9]$|^[A-Ha-h]1[0-2]$', stock_code):
-                    st.error(f"Please insert correct Stock plate and Stock location \n ex) Stock_plate3, A7")
-                else:
-                    st.warning(f"total {d2reqvol}ul of {selected_name} required in {stock_plate}, {stock_code}")
-                    sources = pd.concat([sources, common_data], ignore_index=True)
-            
-            sources = pd.concat([sources, common_data], ignore_index=True)
-
-            for common in lv2_commons:
-                if lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > 50:
-                    st.warning(f"Total volume({lv2_volume*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>50ul)!")
-
-
         # Convert DataFrame to designs format
-
-        st.write(design_df)
+        # st.write(design_df)
         designs = []
         tu_per_single_well = int((50-lv2_deadvol)/total_vol)
-        # st.write(f"total volume: {total_vol}ul")
-        # st.write(f"volume for each well = {50 - lv2_deadvol}")
-        # st.write(f"max tu in single well = {tu_per_single_well}")
         for _, row in design_df.iterrows():
             row_useage = row["tu_usage"]
-            # st.write(row_useage)
             while row_useage > 0:
                 if row_useage >= tu_per_single_well:
                     tu_con = tu_per_single_well
                 else:
                     tu_con = row_useage
                 row_useage -= tu_con
-                # st.write(row_useage)
                 
                 row_design = []
                 for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
@@ -592,47 +609,14 @@ if uploaded_file is not None:
                 for repeat in range(user_defined_groups_roa[row["Group"]]):
                     design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
                     designs.append(design_with_note)
-            
-            # total_vol = (sum(common['volume'] for common in commons) + sum(vols))*row["tu_usage"]
-            # row_volume = sum(vols[col] * row["tu_usage"] for col in range(4)) + sum(common['volume'] * row["tu_usage"] for common in commons)
-            # ## 몇개를 해야 하는지..
-            # row_repeat = int((row_volume-0.5)/(50-lv2_deadvol)) + 1
-            # # st.write(row)
-            # for i in range(row_repeat):
-            #     row_design = []
-            #     for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
-            #         if row[category] != "":
-            #             row_design.append({'name': row[category], 'volume': vols[col]*row["tu_usage"]/row_repeat})
-            #     for common in commons:
-            #         common_a = {'name': common['name'], 'volume': common['volume'] * row["tu_usage"]/row_repeat}
-            #         row_design += [common_a]
-            #     for repeat in range(user_defined_groups_roa[row["Group"]]):
-            #         design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
-            #         designs.append(design_with_note)
-
-
 
         designs_plate_num = int((len(designs)-0.5)/96)+1
 
-        # for i in range(3):
-        #     st.write("")
-
-        # with st.expander("Design details"):
-        #     st.write(designs)
-        
-        for i in range(10):
-            st.write("")
-
-        #####################################################################################################
-
         st.write("## Outputs")
         st.write("#### Lv1")
-        # with st.expander("Design detail for lv1"):
-        #     st.dataframe(design_df)
-        #     st.write("Total TU useage: ", sum(design_df['tu_usage']))
 
         ### LV1 protocol generate
-        device = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device')
+        device = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device', index = 1)
         # OT2 프로토콜 생성
         if device == "OT2":
             plate_len = int((len(designs)-0.5)/96+1)
@@ -676,7 +660,7 @@ if uploaded_file is not None:
             st.write("")
 
         st.session_state.lv1_length = len(lv1_outputs)
-        
+        ##
         ###################################################################################################
         st.write("### Lv2")
 
@@ -684,26 +668,13 @@ if uploaded_file is not None:
         
         for comb in design2_list: # group
             group, items = comb
-            row_design = []
-            for item in items:
-                item_name = item['P']+"-"+item['C']+"-"+item['T']+"-"+item['N']
-                volume = lv2_volume
-                note = user_defined_groups[group]
-
-                row_design.append({'name':item_name, 'volume':volume, 'note':note})
-            #     name = n
-            #     volume = lv2_volume
-            #     note = user_defined_groups[group]
+            row_design = [{'name': f"{item['P']}-{item['C']}-{item['T']}-{item['N']}", 'volume': total_vol, 'note': user_defined_groups[group]} for item in items]
             row_design += lv2_commons
             designs2.append(row_design)
 
-            #     row_design.append({'name': name, 'volume': volume, 'note':note})
-            # row_design += lv2_commons
-            # designs2.append(row_design)
-
         ###################################################################################################
 
-        device2 = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device2')
+        device2 = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device2', index = 1)
 
         # OT2 프로토콜 생성
         if device2 == "OT2":
@@ -734,28 +705,17 @@ if uploaded_file is not None:
 
         if device2 == 'Janus':
             ### janus mapping generate
-            design2_plate_num = int((len(designs2)-0.5)/96)+1
-            # st.session_state.design2_len = len(designs2)
-            # st.write(design2_plate_num)
+            design2_plate_num = int((len(designs2) - 0.5) / 96) + 1
         
-            dplate2_name = []
-            for i in range(design2_plate_num):
-                dplate2_name.append(st.text_input(label = f"Destination Plate Name {i+1}", value = f"Dest_02_{i+1}"))
-            # Combine sources and lv1_outputs
+            dplate2_name = [st.text_input(label=f"Destination Plate Name {i+1}", value=f"Dest_02_{i+1}") for i in range(design2_plate_num)]
             combined_sources = pd.concat([sources, lv1_outputs])
-            # Generate Janus protocol for Lv2
             protocol2, lv2_outputs = generate_janus_protocol(designs2, dplate2_name, combined_sources, naming="note")
-            # Separate sources and lv1_outputs
             sources = combined_sources[combined_sources['name'].isin(sources['name'])].iloc[:, :6]
-            lv1_outputs = combined_sources[combined_sources['name'].isin(lv1_outputs['name'])]           
-            
+            lv1_outputs = combined_sources[combined_sources['name'].isin(lv1_outputs['name'])]
+
             st.write("Janus mapping")
             st.write(protocol2.reset_index(drop=True))
             st.write("Final output plate")
             st.write(lv2_outputs.reset_index(drop=True))
             st.write("Updated Sources")
             st.write(sources)
-
-
-            # debugging area
-            # st.write(designs2)
