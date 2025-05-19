@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from itertools import product
+import math
 import re
 
 # Streamlit 페이지 설정
@@ -15,105 +16,59 @@ def find_source_well(sources_, name, required_volume):
     sources_.loc[(sources_['name'] == row['name']) & (sources_['plate'] == row['plate']) & (sources_['well'] == row['well']), 'volume'] -= required_volume
     return row['plate'], row['well']
 
-def generate_ot2_protocol(designs, plate_posit, metadata, requirements, sources):
-    output_designs = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
-    protocol_script = f"""
+def protocol_to_ot2_script(protocol_rows, metadata, requirements, plate_posit):
+    script = f"""
 from opentrons import protocol_api
-from itertools import permutations
 
 # metadata
 metadata = {{
     {metadata}
 }}
-
 requirements = {{{requirements}}}
 
 def run(protocol: protocol_api.ProtocolContext):
     # labware_load
     """
-    
     # Labware 위치 설정
     for plate, position in plate_posit[:-1]:
-        protocol_script += f"{plate} = protocol.load_labware('corning_96_wellplate_360ul_flat', {position})\n    "
-    
-    protocol_script += f"""
+        script += f"{plate} = protocol.load_labware('corning_96_wellplate_360ul_flat', {position})\n    "
+    script += f"""
     tiprack = protocol.load_labware('opentrons_96_tiprack_300ul', {plate_posit[-1][1]})
     p300 = protocol.load_instrument('p300_single', 'left', tip_racks=[tiprack])\n
     """
-    volume_error = False
-    group_counters = {}  # 그룹별 인덱스 초기화
 
-    for index, design in enumerate(designs):
-        if volume_error:
-            protocol_script = "error"
-            output_designs = pd.DataFrame()
-            break
-
-        # 목적지 웰 설정
-        dest_list = ["A", "B", "C", "D", "E", "F", "G", "H"]
-        dest_row = int(index / 12)
-        destination = f"{dest_list[dest_row]}{index + 1 - 12 * (dest_row)}"
-        
-        # 디자인에 그룹 이름을 포함하여 이름 설정
-        group_name = design[0]['note']  # 첫 번째 아이템의 note에서 그룹 이름 가져오기
-        if group_name not in group_counters:
-            group_counters[group_name] = 1  # 새로운 그룹이면 인덱스 초기화
-        else:
-            group_counters[group_name] += 1  # 기존 그룹이면 인덱스 증가
-
-        output_design = {
-            'name': f"{design[0]['name']}-{design[1]['name']}-{design[2]['name']}-{design[3]['name']}",
-            'plate': "dest_01",
-            'well': destination,
-            'volume': 0,
-            'note': f"{group_name}_{group_counters[group_name]}"
-        }
-        protocol = f"\n\n    # Assembly design {index + 1}"
-
-        # 디자인에서 소스 데이터 추출
-        for k, item in enumerate(design):
-            name = item['name']
-            vol = item['volume']
-            output_design['volume'] += vol
-            output_design[k] = name
-
-            try:
-                plate, well = find_source_well(sources, name, vol)
-            except ValueError:
-                total_have = sources.loc[sources['name'] == name, 'volume'].sum()
-                total_need = sum(item['volume'] for design in designs for item in design if item['name'] == name)
-                st.error(f"total {total_have}ul in sources when {total_need}ul need")
-                volume_error = True
-                break
-
-            protocol += f"""
+    for idx, row in protocol_rows.iterrows():
+        script += f"""
+    # Transfer {row['Component']}
     p300.pick_up_tip()
-    p300.aspirate({vol}, {plate}['{well}'])  # {name}
-    p300.dispense({vol}, destination['{destination}'])
+    p300.aspirate({row['Volume']}, {row['Asp.Rack']}['{row['Asp.Posi']}'])  # {row['Note']}
+    p300.dispense({row['Volume']}, {row['Dsp.Rack']}['{row['Dsp.Posi']}'])
     p300.drop_tip()
     """
-        output_designs = pd.concat([output_designs, pd.DataFrame([output_design])])
-        protocol_script += protocol
+    return script
 
-    return protocol_script, output_designs
-
-def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
+def generate_protocol(designs, destination_name, sources, plate_type=96, naming = "TU"):
     protocol_rows = pd.DataFrame(columns=["Component", "Asp.Rack", "Asp.Posi", "Dsp.Rack", "Dsp.Posi", "Volume", "Note"])
     output_rows = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
+    dest_list = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"]
+    dest_row_list = {"6":3, "12":4, "24":6, "48":8, "96":12, "384":24}  
+    dest_row_num = dest_row_list.get(str(plate_type))
     volume_error = False
     group_counters = {}  # 그룹별 인덱스 초기화
     for index, design in enumerate(designs):
         if volume_error:
             protocol_rows, output_rows = None, None
             break
-        plate_num = int((index)/96)
+        plate_num = int(index/plate_type)
+        # st.write(index/plate_type)
         dest_name = destination_name[plate_num]
-        plate_index = index - plate_num*96 + 1
+        plate_index = index - plate_num*plate_type + 1
         # 목적지 웰 설정
-        dest_list = ["A", "B", "C", "D", "E", "F", "G", "H"]
-        dest_row = int((plate_index-0.5)//12)
+        st.write()
+        # dest_row = int((plate_index-0.5)//dest_row_num)
+        dest_row = math.ceil(plate_index/dest_row_num) - 1
 
-        destination = f"{dest_list[dest_row]}{plate_index - 12 * (dest_row)}"
+        destination = f"{dest_list[dest_row]}{plate_index - dest_row_num * (dest_row)}"
         
         # 디자인에 그룹 이름을 포함하여 이름 설정
         group_name = design[0]['note']  # 첫 번째 아이템의 note에서 그룹 이름 가져오기
@@ -123,7 +78,7 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
             group_counters[group_name] += 1  # 기존 그룹이면 인덱스 증가
 
         protocol_row = {
-            "Component": f"{group_name}_{group_counters[group_name]}",
+            "Component": f"{naming}_{group_name}_{group_counters[group_name]}",
             "Asp.Rack": "",
             "Asp.Posi": "",
             "Dsp.Rack": dest_name,
@@ -133,11 +88,11 @@ def generate_janus_protocol(designs, destination_name, sources, naming = "TU"):
         }
 
         output_row = {
-            "name": f"{design[0]['name']}-{design[1]['name']}-{design[2]['name']}-{design[3]['name']}" if naming == "TU" else f"{group_name}_{group_counters[group_name]}",
+            "name": f"{design[0]['name']}-{design[1]['name']}-{design[2]['name']}-{design[3]['name']}" if naming == "TU" else f"{naming}_{group_name}_{group_counters[group_name]}",
             "plate": dest_name,
             "well": destination,
             "volume": 0,
-            "note": f"{group_name}_{group_counters[group_name]}"
+            "note": f"{naming}_{group_name}_{group_counters[group_name]}"
         }
         
         # 디자인에서 소스 데이터 추출
@@ -172,23 +127,10 @@ def validate_stock_location(stock_plate, stock_code):
     return stock_plate.strip() != "" and re.match(r'^[A-Ha-h][1-9]$|^[A-Ha-h]1[0-2]$', stock_code)
 
 
-
 if "commons_row" not in st.session_state:
     st.session_state.commons_row = 1  # 초기 행 수 설정
 if "commons_row2" not in st.session_state:
     st.session_state.commons_row2 = 1  # 초기 행 수 설정
-
-if 'total_mk' not in st.session_state:
-    st.session_state.total_mk = 0
-if 'design2_len' not in st.session_state:
-    st.session_state.design2_len = 0
-if "lv1_length" not in st.session_state:
-    st.session_state.lv1_length = 0
-if "total_vol" not in st.session_state:
-    st.session_state.total_vol = 0
-if "lv2_deadvol" not in st.session_state:
-    st.session_state.lv2_deadvol = 0
-
 
 
 st.title("Assembly Design Tool")
@@ -259,6 +201,19 @@ if uploaded_file is not None:
     st.write("")
     st.write("")
     st.write(">## Assembly Design")
+
+    # 볼륨 입력
+    st.write("="*100)
+    ## maximum volume of single well
+    st.write("### Maximum volume of single well")
+    st.write("Specify the maximum volume of each well in the lv1 output. Default is 50ul for 96 well plate.")
+    lv1_maxvol = st.number_input(label = "Maximum volume for each TU", min_value = 0., value = 50., step = 0.1, label_visibility="collapsed")
+    ## deadvolume setting
+    st.write("### Deadvolume")
+    st.write("Specify the dead volume of each well in the lv1 output. Recommended to be larger than 2ul.")
+    lv2_deadvol = st.number_input(label = "Dead volume for each TU", min_value = 0., value = 2., step = 0.1, label_visibility="collapsed")
+    # st.session_state.lv2_deadvol = lv2_deadvol
+    st.write("="*100)
 
     st.write("### Groups")
     # 사용자에게 그룹 지정 옵션 제공
@@ -412,7 +367,6 @@ if uploaded_file is not None:
     # st.write(design_df)
     # st.write(design2_list)
 
-    # 볼륨 입력
     st.write("### TU parts")
     st.write("Specify the volume for each part in the TU design. The default volume is 2ul.")
     vols = []
@@ -421,15 +375,16 @@ if uploaded_file is not None:
         with cols_placeholder[col]:
             vols.append(st.number_input(label=category, value=2., step=0.1, min_value=0., key=f"vols_{col}"))
 
+    st.write("")
 
     # 공통 부품 추가
     # others = sources[sources['type'].isna()]['name'].drop_duplicates().tolist()
     commons = []
-
     col1, col2, col3 = st.columns([3, 1, 8])
     with col1: st.write("### Lv1 Common parts")
-    st.write('''Specify the plate name and location for the parts to be added as Common Parts in Lv1.  
-             *If the part name exists in the provided source, it will be used.''')
+    st.write('''Set the parts to be included in every Lv1 TU. Specify the plate name and location.  
+             (If the part name exists in the source, that source will be used.)
+             ''')
     with col2: 
         if st.button('add'):
             st.session_state.commons_row += 1
@@ -463,18 +418,16 @@ if uploaded_file is not None:
         else:
             st.error("Invalid Stock plate or Stock location format. Example) Stock_plate3, A7")
 
-
-    st.write("")
+    for i in range(3):
+        st.write("")
+    
     # 총 볼륨 계산
     total_vol = sum(common['volume'] for common in commons) + sum(vols)
     st.success(f"total {total_vol}ul of each TU")
-    st.session_state.total_vol = total_vol
+    # st.session_state.total_vol = total_vol
 
-    ## deadvolume setting
-    st.write("### Deadvolume")
-    st.write("Specify the dead volume of each well in the lv1 output. Recommended to be larger than 2ul.")
-    lv2_deadvol = st.number_input(label = "Dead volume for each TU", min_value = 0., value = 2., step = 0.1, label_visibility="collapsed")
-    st.session_state.lv2_deadvol = lv2_deadvol
+    for i in range(5):
+        st.write("")
 
     ## lv2 commons
     lv2_commons = []
@@ -486,8 +439,8 @@ if uploaded_file is not None:
     with col3: 
         if st.button('del', key = "del2") and st.session_state.commons_row2 > 1:
             st.session_state.commons_row2 -= 1
-    st.write('''Specify the plate name and location for the parts to be added as Common Parts in Lv2.  
-             *If the part name exists in the provided source, it will be used.''')
+    st.write('''Set the parts to be included in every Lv2 outputs. Specify the plate name and location.  
+             (If the part name exists in the provided source, it will be used.)''')
 
     col1, col2, col3, col4 = st.columns([3,2,2,2])
     with col1: st.write("Part name")
@@ -508,8 +461,8 @@ if uploaded_file is not None:
         lv2_commons.append({'name': selected_name, 'volume': volume, 'in_source': name_exist, 'plate': stock_plate, 'well': stock_code})
         
         for common in lv2_commons:
-            if total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > 50:
-                st.warning(f"Total volume({total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>50ul)!")
+            if total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > lv1_maxvol:
+                st.warning(f"Warning: Total volume({total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>{lv1_maxvol})!")
         
         if selected_name in sources['name'].values:
             current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
@@ -524,10 +477,11 @@ if uploaded_file is not None:
     # Calculate the required volume for each TU
     design_df['need_vol'] = design_df['tu_usage'] * total_vol
     # Calculate the number of wells required for each TU
-    design_df['wells_required'] = (design_df['need_vol'] / (50 - lv2_deadvol)).apply(lambda x: int(x) + (x % 1 > 0))
-    design_df['volume_for_each_well'] = design_df['need_vol'] / design_df['wells_required']+lv2_deadvol
+    design_df['wells_required'] = (design_df['need_vol'] / (lv1_maxvol - lv2_deadvol)).apply(lambda x: int(x) + (x % 1 > 0))
+    design_df['wells_required'] = design_df['wells_required'].apply(lambda x: 1 if x == 0 else x) ## prevent division by zero errors
+    design_df['volume_for_each_well'] = design_df['need_vol'] / design_df['wells_required'] + lv2_deadvol 
     design_df['total_vol'] = design_df['wells_required'] * design_df['volume_for_each_well']
-    ratepoint = sum(design_df['total_vol'])/total_vol
+    ratepoint = round(sum(design_df['total_vol'])/total_vol, 2)
 
     for common in commons:
         if not common['in_source']:
@@ -538,7 +492,7 @@ if uploaded_file is not None:
             "volume": common['volume']*ratepoint + lv2_deadvol,
             "note": "common part added"
             }])
-            st.write(common_source)
+            # st.write(common_source)
             sources = pd.concat([sources, common_source], ignore_index=True)
     
     for common2 in lv2_commons:
@@ -547,10 +501,10 @@ if uploaded_file is not None:
             "name": common2['name'],
             "plate": common2['plate'],
             "well": common2['well'],
-            "volume": common2['volume']* len(design2_list) + lv2_deadvol,
+            "volume": (common2['volume']+lv2_deadvol) * len(design2_list),
             "note": "common part added"
             }])
-            st.write(common2_source)
+            # st.write(common2_source)
             sources = pd.concat([sources, common2_source], ignore_index=True)
 
     ## summary designs
@@ -570,6 +524,7 @@ if uploaded_file is not None:
     #     st.write(f"total volume for all TU: {sum(design_df['total_vol'])}ul")
     #     st.write(f"ratepoint: {ratepoint}")
     #     st.write(f"common vol of entire volume: {sum(design_df['total_vol'])*(commons[0]['volume']/total_vol)}ul")
+    #     st.write(f"ratepoint: {ratepoint}")
     #     st.write(design_df)
     
 
@@ -589,7 +544,7 @@ if uploaded_file is not None:
         # Convert DataFrame to designs format
         # st.write(design_df)
         designs = []
-        tu_per_single_well = int((50-lv2_deadvol)/total_vol)
+        tu_per_single_well = int((lv1_maxvol-lv2_deadvol)/total_vol)
         for _, row in design_df.iterrows():
             row_useage = row["tu_usage"]
             while row_useage > 0:
@@ -602,68 +557,56 @@ if uploaded_file is not None:
                 row_design = []
                 for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
                     if row[category] != "":
-                        row_design.append({'name': row[category], 'volume': vols[col]*tu_con+(lv2_deadvol*vols[col]/total_vol)})
+                        row_design.append({'name': row[category], 'volume': round(vols[col]*tu_con+(lv2_deadvol*vols[col]/total_vol), 2)})
                 for common in commons:
-                    common_a = {'name': common['name'], 'volume': common['volume']*tu_con+(lv2_deadvol*common['volume']/total_vol)}
+                    common_a = {'name': common['name'], 'volume': round(common['volume']*tu_con+(lv2_deadvol*common['volume']/total_vol), 2)}
                     row_design += [common_a]
                 for repeat in range(user_defined_groups_roa[row["Group"]]):
                     design_with_note = [{'name': item['name'], 'volume': item['volume'], 'note': row["Group"]} for item in row_design]
                     designs.append(design_with_note)
 
-        designs_plate_num = int((len(designs)-0.5)/96)+1
 
         st.write("## Outputs")
         st.write("#### Lv1")
+        lv1_sources = sources.copy()
 
-        ### LV1 protocol generate
-        device = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device', index = 1)
-        # OT2 프로토콜 생성
-        if device == "OT2":
-            plate_len = int((len(designs)-0.5)/96+1)
-            if plate_len > 1:
-                st.error("OT2 does not support multiple destinations yet..\nPlease use Janus protocol")
-            else:
-                with st.expander("OT2 protocol"):
-                    metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata").replace("\n", "\n    ")
-                    requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements")
+        lv1_plate_type = int(st.selectbox(label='Destination plate type', options=["6", "12", "24", "48", "96", "384"], index=4, key="lv1_plate_type"))
+        # lv1_plate_len = int((len(designs)-0.5)/lv1_plate_type)+1
+        lv1_plate_len = math.ceil(len(designs)/lv1_plate_type)
+        # st.write(len(designs), plate_type, plate_len)
 
-                    plate_posit = []
-                    for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
-                        position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i)
-                        plate_posit.append([plate, position])
-                    plate_posit.append(["destination", st.selectbox(options=range(1, 12), label="destination_rack position:", index=i+1)])
-                    plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="tibrack position:", index=i+2)])
+        lv1_destination_names = []
+        for plate_num in range(lv1_plate_len):
+            lv1_destination_names.append(st.text_input(f"Destination Plate {plate_num+1} Name", value=f"Lv1_destination_{plate_num+1}", key = f"lv1_destination_name_{plate_num}"))
+        
+        lv1_protocol, lv1_outputs = generate_protocol(designs, lv1_destination_names, lv1_sources, plate_type=lv1_plate_type)
+        
+        for common in commons:
+            if not common['in_source']:
+                # st.write(common)
+                st.warning(f"please ensure that minimum {round(common['volume']*ratepoint,2)}ul of {common['name']} is available in {common['plate']}, {common['well']}")
 
-                    protocol, lv1_outputs = generate_ot2_protocol(designs, plate_posit, metadata, requirements, sources)
-                    
-                    st.write("generated protocol:")
-                    st.code(protocol, language='python')
-                    st.write("generated output plate:")
-                    st.write(lv1_outputs)
-                    st.write("updated sources")
-                    st.write(sources)
-        # Janus 프로토콜 생성
-        if device == "Janus":
-            plate_len = int((len(designs)-0.5)/96+1)
-            dplate1_name = []
-            for i in range(plate_len):
-                dplate1_name.append(st.text_input(f"Destination Plate {i+1} Name", value=f"destination_{i+1}", key = f"dplate{i}_name"))
-            with st.expander("Janus protocol"):
-                protocol, lv1_outputs = generate_janus_protocol(designs, dplate1_name, sources)
-                st.write("generated mapping:")
-                st.write(protocol.reset_index(drop=True))
-                st.write("generated output plate:")
-                st.write(lv1_outputs.reset_index(drop=True))
-                st.write("updated sources")
-                st.write(sources)
-        for i in range(7):
-            st.write("")
+        st.write("Generated Lv1 mapping:")
+        st.write(lv1_protocol.reset_index(drop=True))
+        with st.expander("Generated Lv1 output plate (*for reference):"):
+            st.write(lv1_outputs.reset_index(drop=True))
+        
 
-        st.session_state.lv1_length = len(lv1_outputs)
-        ##
-        ###################################################################################################
-        st.write("### Lv2")
+        # with st.expander("OT2 convert:"):
+        #     lv1_metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata").replace("\n", "\n    ")
+        #     lv1_requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements")
+        #     lv1_plate_posit = []
+        #     for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
+        #         position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv1_pos_{i}")
+        #         lv1_plate_posit.append([plate, position])
+        #     for j in range(lv1_plate_len):
+        #         lv1_plate_posit.append([f"destination_{j}", st.selectbox(options=range(1, 12), label=f"Destination_{j+1} rack position:", key = f'lv1_destination_{j}', index=i+j+1)])
+        #     lv1_plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="Tiprack position:", index=i+2)])
+        #     converted_protocol = protocol_to_ot2_script(lv1_protocol, lv1_metadata, lv1_requirements, lv1_plate_posit)
+        #     st.code(converted_protocol, language='python')
 
+
+        st.write("#### Lv2")
         designs2 = []
         
         for comb in design2_list: # group
@@ -672,50 +615,43 @@ if uploaded_file is not None:
             row_design += lv2_commons
             designs2.append(row_design)
 
-        ###################################################################################################
+        lv2_plate_type = int(st.selectbox(label='Destination plate type', options=["6", "12", "24", "48", "96", "384"], index=4, key="lv2_plate_type"))
+        # lv2_plate_len = int((len(designs2)-0.5)/lv2_plate_type)+1
+        lv2_plate_len = math.ceil(len(designs2)/lv2_plate_type)
+        # st.write(len(designs), lv2_plate_type , lv2_plate_len)
 
-        device2 = st.selectbox(label = "Lv1 Device", options = ["OT2", "Janus"], key='device2', index = 1)
-
-        # OT2 프로토콜 생성
-        if device2 == "OT2":
-            plate_len = int((len(designs)-0.5)/96+1)
-            if plate_len > 1:
-                st.error("OT2 does not support multiple destinations yet..\nPlease use Janus protocol")
-            else:
-                with st.expander("OT2 protocol"):
-                    metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata", key="meta2").replace("\n", "\n    ")
-                    requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements", key="req2")
-
-                    plate_posit = []
-                    for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
-                        position = st.selectbox(options=range(1, 12), label=f"{plate} position:", key=f"pos2_{i}_{plate}")
-                        plate_posit.append([plate, position])
-                    plate_posit.append(["destination", st.selectbox(options=range(1, 12), label="destination_rack position:", index=i+1, key = "dest_pos2")])
-                    plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="tibrack position:", index=i+2, key = "tip_pos2")])
-
-                    protocol, lv1_outputs = generate_ot2_protocol(designs, plate_posit, metadata, requirements, sources)
-                    
-                    st.write("generated protocol:")
-                    st.code(protocol, language='python')
-                    st.write("generated output plate:")
-                    st.write(lv1_outputs)
-                    st.write("updated sources")
-                    st.write(sources)
+        for common2 in lv2_commons:
+            if not common2['in_source']:
+                # st.write(common)
+                st.warning(f"please ensure that minimum {round(common2['volume']*ratepoint,2)}ul of {common2['name']} is available in {common2['plate']}, {common2['well']}")
 
 
-        if device2 == 'Janus':
-            ### janus mapping generate
-            design2_plate_num = int((len(designs2) - 0.5) / 96) + 1
+
+        lv2_destination_names = []
+        for plate_num in range(lv2_plate_len):
+            lv2_destination_names.append(st.text_input(f"Destination Plate {plate_num+1} Name", value=f"Lv2_destination_{plate_num+1}", key = f"lv2_destination_name_{plate_num}"))
         
-            dplate2_name = [st.text_input(label=f"Destination Plate Name {i+1}", value=f"Dest_02_{i+1}") for i in range(design2_plate_num)]
-            combined_sources = pd.concat([sources, lv1_outputs])
-            protocol2, lv2_outputs = generate_janus_protocol(designs2, dplate2_name, combined_sources, naming="note")
-            sources = combined_sources[combined_sources['name'].isin(sources['name'])].iloc[:, :6]
-            lv1_outputs = combined_sources[combined_sources['name'].isin(lv1_outputs['name'])]
 
-            st.write("Janus mapping")
-            st.write(protocol2.reset_index(drop=True))
-            st.write("Final output plate")
+        lv2_sources = pd.concat([lv1_sources, lv1_outputs])
+        # st.write(lv2_destination_names)
+        lv2_protocol, lv2_outputs = generate_protocol(designs2, lv2_destination_names, lv2_sources, plate_type=lv2_plate_type)
+
+        
+        st.write("Generated Lv2 mapping:")
+        st.write(lv2_protocol.reset_index(drop=True))
+        with st.expander("Generated Lv2 output plate:"):
             st.write(lv2_outputs.reset_index(drop=True))
-            st.write("Updated Sources")
-            st.write(sources)
+        
+
+        st.write("updated sources:")
+        st.write(lv2_sources.reset_index(drop=True))
+
+        # with st.expander("OT2 convert:"):
+        #     lv2_metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata", key="lv2_meta").replace("\n", "\n    ")
+        #     lv2_requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements", key="lv2_reqs")
+        #     lv2_plate_posit = []
+        #     lv2_plate_posit.append(["destination", st.selectbox(options=range(1, 12), label="destination_rack position:", index=i+1, key = "lv2_dpos")])
+        #     lv2_plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="tibrack position:", index=i+2, key = "lv2_tpos")])
+        #     converted_protocol = protocol_to_ot2_script(lv2_protocol, lv2_metadata, lv2_requirements, lv2_plate_posit)
+        #     st.code(converted_protocol, language='python')
+
