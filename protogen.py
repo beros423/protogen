@@ -539,7 +539,7 @@ if uploaded_file is not None:
     for i in range(5):
         st.write("")
 
-    if st.session_state.get("apply_clicked", False):
+    if st.session_state.get("apply_clicked", False): 
         
         # Convert DataFrame to designs format
         # st.write(design_df)
@@ -592,18 +592,43 @@ if uploaded_file is not None:
             st.write(lv1_outputs.reset_index(drop=True))
         
 
-        # with st.expander("OT2 convert:"):
-        #     lv1_metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata").replace("\n", "\n    ")
-        #     lv1_requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements")
-        #     lv1_plate_posit = []
-        #     for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
-        #         position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv1_pos_{i}")
-        #         lv1_plate_posit.append([plate, position])
-        #     for j in range(lv1_plate_len):
-        #         lv1_plate_posit.append([f"destination_{j}", st.selectbox(options=range(1, 12), label=f"Destination_{j+1} rack position:", key = f'lv1_destination_{j}', index=i+j+1)])
-        #     lv1_plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="Tiprack position:", index=i+2)])
-        #     converted_protocol = protocol_to_ot2_script(lv1_protocol, lv1_metadata, lv1_requirements, lv1_plate_posit)
-        #     st.code(converted_protocol, language='python')
+        with st.expander("OT2 convert:"):
+            lv1_metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata").replace("\n", "\n    ")
+            lv1_requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements")
+            labware_options = [
+                            "corning_96_wellplate_360ul_flat",
+                            "opentrons_96_tiprack_300ul",
+                            "biorad_96_wellplate_200ul_pcr",
+                            "nest_96_wellplate_2ml_deep",
+                            "usascientific_12_reservoir_22ml",
+                            "opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap"
+                        ]
+            lv1_plate_posit = []
+            lv1_plate_types = []
+            
+            for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
+                col1, col2 = st.columns(2)
+                with col1:
+                    position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv1_pos_{i}")
+                with col2:
+                    labware_type = st.selectbox(f"{plate} labware type", options=labware_options, index=0, key=f"lv1_labware_type_{i}")
+                lv1_plate_posit.append([plate, position])
+                lv1_plate_types.append([plate, labware_type])
+            
+            for i, plate in enumerate(lv1_destination_names):
+                col1, col2 = st.columns(2)
+                with col1:
+                    position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv1_dpos_{i}")
+                with col2:
+                    labware_type = st.selectbox(f"{plate} labware type", options=labware_options, index=0, key=f"lv1_dlabware_type_{i}")
+                lv1_plate_posit.append([plate, position])
+                lv1_plate_types.append([plate, labware_type])
+            
+            # for j in range(lv1_plate_len):
+            #     lv1_plate_posit.append([f"destination_{j}", st.selectbox(options=range(1, 12), label=f"Destination_{j+1} rack position:", key = f'lv1_destination_{j}', index=i+j+1)])
+            lv1_plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="Tiprack position:", index=i+2)])
+            converted_protocol = protocol_to_ot2_script(lv1_protocol, lv1_metadata, lv1_requirements, lv1_plate_posit)
+            st.code(converted_protocol, language='python')
 
 
         st.write("#### Lv2")
@@ -655,3 +680,40 @@ if uploaded_file is not None:
         #     converted_protocol = protocol_to_ot2_script(lv2_protocol, lv2_metadata, lv2_requirements, lv2_plate_posit)
         #     st.code(converted_protocol, language='python')
 
+        with st.expander("OT2 convert:"):
+            lv2_metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata", key = 'lv2_metadata').replace("\n", "\n    ")
+            lv2_requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements", key = 'lv2_requirements')
+            labware_options = [
+                            "corning_96_wellplate_360ul_flat",
+                            "opentrons_96_tiprack_300ul",
+                            "biorad_96_wellplate_200ul_pcr",
+                            "nest_96_wellplate_2ml_deep",
+                            "usascientific_12_reservoir_22ml",
+                            "opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap"
+                        ]
+            lv2_plate_posit = []
+            lv2_plate_types = []
+            
+            for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
+                col1, col2 = st.columns(2)
+                with col1:
+                    position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv2_pos_{i}")
+                with col2:
+                    labware_type = st.selectbox(f"{plate} labware type", options=labware_options, index=0, key=f"lv2_labware_type_{i}")
+                lv2_plate_posit.append([plate, position])
+                lv2_plate_types.append([plate, labware_type])
+            
+            for i, plate in enumerate(lv2_destination_names):
+                col1, col2 = st.columns(2)
+                with col1:
+                    position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv2_dpos_{i}")
+                with col2:
+                    labware_type = st.selectbox(f"{plate} labware type", options=labware_options, index=0, key=f"lv2_dlabware_type_{i}")
+                lv2_plate_posit.append([plate, position])
+                lv2_plate_types.append([plate, labware_type])
+            
+            # for j in range(lv1_plate_len):
+            #     lv1_plate_posit.append([f"destination_{j}", st.selectbox(options=range(1, 12), label=f"Destination_{j+1} rack position:", key = f'lv1_destination_{j}', index=i+j+1)])
+            lv2_plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="Tiprack position:", index=i+2, key = "lv2_tiprack")])
+            converted_protocol = protocol_to_ot2_script(lv2_protocol, lv2_metadata, lv2_requirements, lv2_plate_posit)
+            st.code(converted_protocol, language='python')
