@@ -156,7 +156,7 @@ if uploaded_file is not None:
     with vol_col1:
         st.write("Default volume (ul)")
     with vol_col2:
-        default_vol = st.number_input("Default volume", value=100, min_value=0, step=10, label_visibility="collapsed")
+        default_vol = st.number_input("Default volume", value=10000, min_value=0, step=10, label_visibility="collapsed")
 
     sources = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
 
@@ -648,7 +648,7 @@ if uploaded_file is not None:
         for common2 in lv2_commons:
             if not common2['in_source']:
                 # st.write(common)
-                st.warning(f"please ensure that minimum {round(common2['volume']*ratepoint,2)}ul of {common2['name']} is available in {common2['plate']}, {common2['well']}")
+                st.warning(f"please ensure that minimum {round(common2['volume']*len(designs2),2)}ul of {common2['name']} is available in {common2['plate']}, {common2['well']}")
 
 
 
