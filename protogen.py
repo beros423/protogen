@@ -583,8 +583,8 @@ if uploaded_file is not None:
         
         for common in commons:
             if not common['in_source']:
-                # st.write(common)
-                st.warning(f"please ensure that minimum {round(common['volume']*ratepoint,2)}ul of {common['name']} is available in {common['plate']}, {common['well']}")
+                common_sum = lv1_protocol[lv1_protocol['Note']==common]['Volume'].sum()
+                st.warning(f"please ensure that minimum {round(common['volume']*ratepoint,2)}ul of {common['name']} is available in {common['plate']}, {common['well']} (+10ul or more is recommended)")
 
         st.write("Generated Lv1 mapping:")
         st.write(lv1_protocol.reset_index(drop=True))
@@ -648,7 +648,7 @@ if uploaded_file is not None:
         for common2 in lv2_commons:
             if not common2['in_source']:
                 # st.write(common)
-                st.warning(f"please ensure that minimum {round(common2['volume']*len(designs2),2)}ul of {common2['name']} is available in {common2['plate']}, {common2['well']}")
+                st.warning(f"please ensure that minimum {round(common2['volume']*len(designs2),2)}ul of {common2['name']} is available in {common2['plate']}, {common2['well']} (+10ul or more is recommended)")
 
 
 
