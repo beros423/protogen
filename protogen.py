@@ -389,7 +389,7 @@ if uploaded_file is not None:
         if st.button('add'):
             st.session_state.commons_row += 1
     with col3: 
-        if st.button('del') and st.session_state.commons_row > 1:
+        if st.button('del') and st.session_state.commons_row > 0:
             st.session_state.commons_row -= 1
     
     col1, col2, col3, col4 = st.columns([3,2,2,2])
@@ -437,7 +437,7 @@ if uploaded_file is not None:
         if st.button('add', key = "add2"):
             st.session_state.commons_row2 += 1
     with col3: 
-        if st.button('del', key = "del2") and st.session_state.commons_row2 > 1:
+        if st.button('del', key = "del2") and st.session_state.commons_row2 > 0:
             st.session_state.commons_row2 -= 1
     st.write('''Set the parts to be included in every Lv2 outputs. Specify the plate name and location.  
              (If the part name exists in the provided source, it will be used.)''')
