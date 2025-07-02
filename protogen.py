@@ -309,7 +309,7 @@ if uploaded_file is not None:
                             items,
                             key=f"select_{row}_{col}_{g}",
                             label_visibility="collapsed",
-                            max_selections= 1 if category == "CDS" else None
+                            # max_selections= 1 if category == "CDS" else None
                         )
                         if not selected_items[category]:
                             selected_items[category] = [""]
