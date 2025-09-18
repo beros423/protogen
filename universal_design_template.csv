@@ -1,0 +1,4 @@
+Promoter,CDS,Terminator,Backbone
+pTrc;pLac,gfp,rrnB_T1,pUC19
+pBAD,rfp;bfp,rrnB_T2,pBR322
+pTet,yfp,dbl_term,pBR322

@@ -1,29 +1,129 @@
 import streamlit as st
 import pandas as pd
 import os
+import json
 from itertools import product
 from functions import find_source_well, generate_ot2_protocol, generate_janus_protocol
 
 ## setup theme
 st.set_page_config(layout = "wide")
 
+# Helper functions for design file loading
+def load_design_from_csv(uploaded_file):
+    """Load assembly design from CSV file.
+    New format: each row is one assembly, each column is a part type
+    Supports multiple parts per cell separated by semicolon (;)
+    Example:
+    Promoter,CDS,Terminator,Backbone
+    pTrc;pLac,gfp,rrnB_T1,pUC19
+    pBAD,rfp;bfp,rrnB_T2,pBR322
+    """
+    try:
+        df = pd.read_csv(uploaded_file)
+        
+        # Extract part types from header (columns)
+        part_types = [col for col in df.columns if col != 'Group']
+        
+        # Process each row as one assembly design
+        design_data = []
+        assemblies = []
+        
+        for row_idx, row in df.iterrows():
+            assembly_parts = {}
+            
+            for part_type in part_types:
+                # Get cell value and split by semicolon for multiple options
+                cell_value = str(row.get(part_type, '')).strip()
+                if cell_value and cell_value != 'nan':
+                    # Split by semicolon and clean up whitespace
+                    parts_list = [part.strip() for part in cell_value.split(';') if part.strip()]
+                    assembly_parts[part_type] = parts_list
+                else:
+                    assembly_parts[part_type] = []
+            
+            if any(assembly_parts.values()):  # Only add if at least one part is specified
+                assemblies.append(assembly_parts)
+        
+        # Return in the expected format
+        if assemblies:
+            design_data.append({
+                'group_name': 'Loaded_Design',
+                'assemblies': assemblies,
+                'part_types': part_types
+            })
+        
+        return design_data
+        
+    except Exception as e:
+        st.error(f"Error loading design from CSV: {str(e)}")
+        return None
+    except Exception as e:
+        st.error(f"Error loading design from CSV: {str(e)}")
+        return None
+
+def load_design_from_json(uploaded_file):
+    """Load assembly design from JSON file."""
+    try:
+        data = json.load(uploaded_file)
+        return data
+    except Exception as e:
+        st.error(f"Error loading design from JSON: {str(e)}")
+        return None
+
+def create_design_template_files():
+    """Create template files for design import."""
+    # CSV template for universal assembly - supports multiple parts per cell
+    csv_template = """Promoter,CDS,Terminator,Backbone
+pTrc;pLac,gfp,rrnB_T1,pUC19
+pBAD,rfp;bfp,rrnB_T2,pBR322
+pTet,yfp,dbl_term,pBR322"""
+    
+    # JSON template for universal assembly
+    json_template = {
+        "group_name": "Universal_Design",
+        "assemblies": [
+            {
+                "Promoter": ["pTrc", "pLac"],
+                "CDS": ["gfp"],
+                "Terminator": ["rrnB_T1"],
+                "Backbone": ["pUC19"]
+            },
+            {
+                "Promoter": ["pBAD"],
+                "CDS": ["rfp", "bfp"],
+                "Terminator": ["rrnB_T2"],
+                "Backbone": ["pBR322"]
+            }
+        ],
+        "part_types": ["Promoter", "CDS", "Terminator", "Backbone"]
+    }
+    
+    return csv_template, json_template
+
 
 ####################################################################################
 ## file load
 
 uploaded_file = st.file_uploader("Upload your Stocking Plate CSV file", type="csv")
-if uploaded_file == None:
-    uploaded_file = "./2025-03-05T02-05_export.csv"
-# try:
-#     sourceplate_name = st.text_input("Sourceplate name", value = os.path.splitext(os.path.basename(uploaded_file))[0])
-# except:
-#     sourceplate_name = "source"
+if uploaded_file is None:
+    # Try to use default file if it exists
+    default_file = "./SourcePlate_Sample.csv"
+    if os.path.exists(default_file):
+        uploaded_file = default_file
+    else:
+        st.warning("Please upload a stocking plate CSV file to continue.")
+        st.stop()
 
 sourceplate_name = "source"
 
 # st.write(uploaded_file)
-if uploaded_file != None:
-    df = pd.read_csv(uploaded_file, encoding = "euc-kr")
+if uploaded_file is not None:
+    if isinstance(uploaded_file, str):
+        # File path string
+        df = pd.read_csv(uploaded_file, encoding = "euc-kr")
+    else:
+        # Uploaded file object
+        df = pd.read_csv(uploaded_file, encoding = "euc-kr")
     # st.write(df)
     # default_vol = st.number_input("default volume", value = 100, min_value = 0, step = 10)
     
@@ -46,12 +146,84 @@ if uploaded_file != None:
     st.write("")
     st.subheader("Protocol Design")
 
+    # Initialize session state for design data
+    if "loaded_design_data" not in st.session_state:
+        st.session_state.loaded_design_data = None
+
+    # File upload section for design
+    with st.expander("Load Assembly Design from File (Optional)"):
+        st.write("Upload a CSV or JSON file to load pre-defined assembly designs.")
+        
+        # Template file download
+        col1, col2 = st.columns(2)
+        with col1:
+            csv_template, json_template = create_design_template_files()
+            st.download_button(
+                label="Download CSV Template",
+                data=csv_template,
+                file_name="assembly_design_template.csv",
+                mime="text/csv"
+            )
+        with col2:
+            st.download_button(
+                label="Download JSON Template", 
+                data=json.dumps(json_template, indent=2),
+                file_name="assembly_design_template.json",
+                mime="application/json"
+            )
+        
+        # File upload
+        design_file = st.file_uploader(
+            "Choose design file",
+            type=['csv', 'json'],
+            key="design_file_uploader"
+        )
+        
+        if design_file is not None:
+            if design_file.name.endswith('.csv'):
+                loaded_data = load_design_from_csv(design_file)
+            elif design_file.name.endswith('.json'):
+                loaded_data = load_design_from_json(design_file)
+            else:
+                loaded_data = None
+                st.error("Unsupported file format")
+            
+            if loaded_data:
+                st.session_state.loaded_design_data = loaded_data
+                st.success(f"✅ Loaded {len(loaded_data)} design group(s)")
+                
+                # Preview loaded data (without nested expander)
+                for group in loaded_data:
+                    st.write(f"**{group['group_name']}** ({len(group['assemblies'])} assemblies)")
+                    st.write(f"Part types: {', '.join(group['part_types'])}")
+                    
+                    for i, assembly in enumerate(group['assemblies']):
+                        parts_list = []
+                        for part_type in group['part_types']:
+                            if part_type in assembly and assembly[part_type]:
+                                parts_str = ';'.join(assembly[part_type])
+                                parts_list.append(f"{part_type}: {parts_str}")
+                        st.write(f"  Assembly {i+1}: {' | '.join(parts_list)}")
+
     ## 조건 설정
     assembly_set_col = st.columns(2)
     with assembly_set_col[0]:
-        rows = st.number_input(label="Number of assembly", value=3, min_value=1)
+        # Suggest number of assemblies from loaded data if available
+        default_rows = 3
+        if st.session_state.loaded_design_data:
+            suggested_rows = len(st.session_state.loaded_design_data[0]['assemblies'])
+            st.info(f"💡 Loaded design has {suggested_rows} assemblies")
+            default_rows = suggested_rows
+        rows = st.number_input(label="Number of assembly", value=default_rows, min_value=1)
+        
     with assembly_set_col[1]:
-        cols = st.number_input(label = "Parts of each wells", value = 4, step = 1, min_value = 0)
+        # Suggest number of parts from loaded data if available
+        default_cols = 4
+        if st.session_state.loaded_design_data:
+            suggested_cols = len(st.session_state.loaded_design_data[0]['part_types'])
+            st.info(f"💡 Loaded design has {suggested_cols} part types")
+            default_cols = suggested_cols
+        cols = st.number_input(label = "Parts of each wells", value = default_cols, step = 1, min_value = 0)
 
 
     ## 
@@ -63,7 +235,7 @@ if uploaded_file != None:
     types = sources['type'].drop_duplicates().tolist()
 
     if "commons_row" not in st.session_state:
-        st.session_state.commons_row = 1  # 초기 행 수 설정
+        st.session_state.commons_row = 1
     
     st.write(f"Common parts [{st.session_state.commons_row}]")
 
@@ -92,6 +264,7 @@ if uploaded_file != None:
     ## volumes input
     labels = []
     vols = []
+    
     cols_placeholder = st.columns(cols)
     for col, category in enumerate(labels):
         with cols_placeholder[col]:
@@ -99,10 +272,32 @@ if uploaded_file != None:
     st.write("types")
     cols_placeholder = st.columns(cols)
     categories = types
+    
     for col in range(cols):
         with cols_placeholder[col]:
-            labels.append(st.selectbox(label = "type", options = categories, key = f"select_part1_{col}", label_visibility="collapsed"))
-            vols.append(round(st.number_input(label = "volume", value = 1., step = 0.1, min_value = 0., key=f"vols_{col}", label_visibility="collapsed"), 2))
+            # Set default category from loaded design if available
+            default_category_index = 0
+            if st.session_state.loaded_design_data and col < len(st.session_state.loaded_design_data[0]['part_types']):
+                loaded_part_type = st.session_state.loaded_design_data[0]['part_types'][col]
+                if loaded_part_type in categories:
+                    default_category_index = categories.index(loaded_part_type)
+            
+            selected_category = st.selectbox(
+                label="type", 
+                options=categories, 
+                index=default_category_index,
+                key=f"select_part1_{col}", 
+                label_visibility="collapsed"
+            )
+            labels.append(selected_category)
+            vols.append(round(st.number_input(
+                label="volume", 
+                value=1., 
+                step=0.1, 
+                min_value=0., 
+                key=f"vols_{col}", 
+                label_visibility="collapsed"
+            ), 2))
     
     
     #####################################
@@ -116,24 +311,43 @@ if uploaded_file != None:
 
     ## design 생성
     designs = []
+    
+    # Show info if loaded design data is available
+    if st.session_state.loaded_design_data:
+        st.info("🔄 Using loaded design data as initial values. You can still modify selections below.")
+        loaded_assemblies = st.session_state.loaded_design_data[0]['assemblies']
+    else:
+        loaded_assemblies = []
+    
+    # Single unified design generation loop
     for row in range(rows):
         cols_placeholder = st.columns(cols)
-
         selected_items = {}
+        
         for col, category in enumerate(labels):
             with cols_placeholder[col]:
                 items = sources[sources['type'] == category]['name'].drop_duplicates().tolist()
+                
+                # Set default selection from loaded data if available
+                default_selection = []
+                if row < len(loaded_assemblies) and category in loaded_assemblies[row]:
+                    loaded_parts = loaded_assemblies[row][category]
+                    # Filter only parts that exist in sources
+                    default_selection = [part for part in loaded_parts if part in items]
+                
                 selected_items[col] = st.multiselect(
                     category,
                     items,
                     key=f"select_{row}_{col}",
-                    # default=[items[0]] if items else [],
+                    default=default_selection,
                     label_visibility="collapsed",
                 )
                 if not selected_items[col]:
                     selected_items[col] = [""]
+        
+        # Generate combinations for this assembly
         selected_items_comb = product(*(selected_items[col] for col in range(len(labels))))
-
+        
         for combi in selected_items_comb:
             row_design = []
             for col, (category, item) in enumerate(zip(labels, combi)):
