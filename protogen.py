@@ -7,6 +7,259 @@ import re
 # Streamlit 페이지 설정
 st.set_page_config(layout="wide")
 
+# Helper functions for UI components
+def create_column_headers(columns, texts):
+    """Create column headers with given texts."""
+    cols = st.columns(columns)
+    for i, text in enumerate(texts):
+        with cols[i]: validate_source_types(sources)
+    """Validate that all required source types are present."""
+    for type_item in ['Promoter', 'CDS', 'Terminator', 'Connector']:
+        if sources[sources['type'] == type_item].empty:
+            st.error(f"No rows with type '{type_item}' found in the sources. Please check your input file.")
+            st.stop()
+
+def load_tu_design_from_csv(uploaded_file):
+    """Load TU design from CSV file.
+    New improved format - each row represents one TU:
+    Group,Promoter,CDS,Terminator
+    Group_1,(P)TDH,(C)mTurquiose2,(T)ENO1
+    Group_1,(P)RPL18B,(C)Venus,(T)ISSA1
+    Group_1,(P)RAD27,(C)mRuby2,(T)ADH1
+    """
+    try:
+        df = pd.read_csv(uploaded_file)
+        design_data = []
+        
+        # Group by 'Group' column
+        for group_name, group_df in df.groupby('Group'):
+            # Use row order as TU order (no need for TU_Order column)
+            
+            group_design = {
+                'group_name': group_name,
+                'number_of_tu': len(group_df),
+                'designs': []
+            }
+            
+            # Each row is one TU design
+            for _, row in group_df.iterrows():
+                # Parse multiple selections (separated by semicolon)
+                promoters = str(row.get('Promoter', '')).split(';') if pd.notna(row.get('Promoter')) else ['']
+                cds_list = str(row.get('CDS', '')).split(';') if pd.notna(row.get('CDS')) else ['']
+                terminators = str(row.get('Terminator', '')).split(';') if pd.notna(row.get('Terminator')) else ['']
+                
+                # Clean up whitespace
+                promoters = [p.strip() for p in promoters if p.strip()]
+                cds_list = [c.strip() for c in cds_list if c.strip()]
+                terminators = [t.strip() for t in terminators if t.strip()]
+                
+                tu_design = {
+                    'Promoter': promoters,
+                    'CDS': cds_list,
+                    'Terminator': terminators,
+                    # 'Connector': ['(N)s|1']  # 기본 connector로 scar 사용
+                }
+                group_design['designs'].append(tu_design)
+            
+            design_data.append(group_design)
+        
+        return design_data
+    except Exception as e:
+        st.error(f"Error loading TU design from CSV: {str(e)}")
+        return None
+        
+    except Exception as e:
+        st.error(f"Error loading TU design from CSV: {str(e)}")
+        return None
+
+def load_tu_design_from_json(uploaded_file):
+    """Load TU design from JSON file.
+    Expected JSON format:
+    [
+        {
+            "group_name": "Group_1",
+            "number_of_tu": 3,
+            "designs": [
+                {
+                    "Promoter": ["P1", "P2"],
+                    "CDS": ["C1"],
+                    "Terminator": ["T1", "T2"],
+                    "Connector": ["N1"]
+                },
+                ...
+            ]
+        },
+        ...
+    ]
+    """
+    try:
+        import json
+        data = json.load(uploaded_file)
+        return data
+    except Exception as e:
+        st.error(f"Error loading TU design from JSON: {str(e)}")
+        return None
+
+def create_design_template_files():
+    """Create template files for TU design import."""
+    # CSV template - minimal required fields only
+    csv_template = """Group,Promoter,CDS,Terminator
+Group_1,(P)TDH,(C)mTurquiose2,(T)ENO1
+Group_1,(P)RPL18B,(C)Venus,(T)ISSA1
+Group_1,(P)RAD27,(C)mRuby2,(T)ADH1
+Group_2,(P)CCW12,(C)Cas9,(T)PGK1
+Group_2,(P)ALD6,(C)I-Scei (ORF),(T)ENO2"""
+    
+    # JSON template - updated to match new format (Connector is automatically set)
+    json_template = [
+        {
+            "group_name": "Group_1",
+            "number_of_tu": 3,
+            "designs": [
+                {
+                    "Promoter": ["(P)TDH"],
+                    "CDS": ["(C)mTurquiose2"],
+                    "Terminator": ["(T)ENO1"]
+                },
+                {
+                    "Promoter": ["(P)RPL18B"],
+                    "CDS": ["(C)Venus"],
+                    "Terminator": ["(T)ISSA1"]
+                },
+                {
+                    "Promoter": ["(P)RAD27"],
+                    "CDS": ["(C)mRuby2"],
+                    "Terminator": ["(T)ADH1"]
+                }
+            ]
+        },
+        {
+            "group_name": "Group_2",
+            "number_of_tu": 2,
+            "designs": [
+                {
+                    "Promoter": ["(P)CCW12"],
+                    "CDS": ["(C)Cas9"],
+                    "Terminator": ["(T)PGK1"]
+                },
+                {
+                    "Promoter": ["(P)ALD6"],
+                    "CDS": ["(C)I-Scei (ORF)"],
+                    "Terminator": ["(T)ENO2"]
+                }
+            ]
+        }
+    ]
+    
+    return csv_template, json_template
+
+def create_input_row(columns, inputs_config):
+    """Create a row of input fields based on configuration."""
+    cols = st.columns(columns)
+    results = []
+    for i, config in enumerate(inputs_config):
+        with cols[i]:
+            if config['type'] == 'text':
+                result = st.text_input(
+                    label=config.get('label', ''),
+                    value=config.get('value', ''),
+                    key=config.get('key', ''),
+                    label_visibility=config.get('label_visibility', 'visible'),
+                    disabled=config.get('disabled', False)
+                )
+            elif config['type'] == 'number':
+                result = st.number_input(
+                    label=config.get('label', ''),
+                    value=config.get('value', 0.0),
+                    min_value=config.get('min_value', 0.0),
+                    step=config.get('step', 0.1),
+                    key=config.get('key', ''),
+                    label_visibility=config.get('label_visibility', 'visible'),
+                    disabled=config.get('disabled', False)
+                )
+            results.append(result)
+    return results
+
+def create_common_parts_section(title, session_key, default_name, default_plate, sources=None, default_volume=None):
+    """Create a common parts input section."""
+    col1, col2, col3 = st.columns([3, 1, 8])
+    with col1: 
+        st.write(f"### {title}")
+    with col2: 
+        if st.button('add', key=f"add_{session_key}"):
+            st.session_state[session_key] += 1
+    with col3: 
+        if st.button('del', key=f"del_{session_key}") and st.session_state[session_key] > 0:
+            st.session_state[session_key] -= 1
+    
+    # Headers
+    create_column_headers([3,2,2,2], ["Part name", "Volume (ul)", "Stock plate", "Stock location"])
+    
+    common_parts = []
+    for row in range(st.session_state[session_key]):
+        col1, col2, col3, col4 = st.columns([3,2,2,2])
+        with col1:
+        # Check if name exists in sources first
+            default_name_for_row = default_name
+            selected_name = st.text_input(
+                label="name", 
+                value=default_name_for_row, 
+                key=f'selectname_{session_key}_{row}', 
+                label_visibility="collapsed"
+            )
+            name_exist = sources is not None and selected_name in sources['name'].values
+            
+            inputs_config = [
+                {'type': 'text', 'label': 'name', 'value': default_name, 'key': f'dummy_{session_key}_{row}', 'label_visibility': 'collapsed'},
+                {'type': 'number', 'label': 'vol', 'value': default_volume or (2.0 if 'lv1' in session_key else 10.0), 'step': 0.1, 'min_value': 0.0, 'key': f'volume_{session_key}_{row}', 'label_visibility': 'collapsed'},
+                {'type': 'text', 'label': 'source plate', 'value': default_plate, 'key': f'common_source_plate_{session_key}_{row}', 'label_visibility': 'collapsed', 'disabled': name_exist},
+                {'type': 'text', 'label': 'stock location', 'value': 'A1', 'key': f'common_stock_location_{session_key}_{row}', 'label_visibility': 'collapsed', 'disabled': name_exist}
+            ]
+        with col2:
+            volume = st.number_input(
+                label=inputs_config[1]['label'],
+                value=inputs_config[1]['value'],
+                min_value=inputs_config[1]['min_value'],
+                step=inputs_config[1]['step'],
+                key=inputs_config[1]['key'],
+                label_visibility=inputs_config[1]['label_visibility']
+            )
+        with col3:
+            stock_plate = st.text_input(
+                label=inputs_config[2]['label'],
+                value=inputs_config[2]['value'],
+                key=inputs_config[2]['key'],
+                label_visibility=inputs_config[2]['label_visibility'],
+                disabled=inputs_config[2]['disabled']
+            )
+        with col4:
+            stock_code = st.text_input(
+                label=inputs_config[3]['label'],
+                value=inputs_config[3]['value'],
+                key=inputs_config[3]['key'],
+                label_visibility=inputs_config[3]['label_visibility'],
+                disabled=inputs_config[3]['disabled']
+            )
+        
+        common_parts.append({
+            'name': selected_name, 
+            'volume': volume, 
+            'in_source': name_exist, 
+            'plate': stock_plate, 
+            'well': stock_code
+        })
+        
+        # Validation messages
+        if sources is not None and selected_name in sources['name'].values:
+            current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
+            st.success(f"{selected_name} detected {current_vol} in sources")
+        elif validate_stock_location(stock_plate, stock_code):
+            st.warning(f"Please ensure {selected_name} is available in {stock_plate}, {stock_code}")
+        else:
+            st.error("Invalid Stock plate or Stock location format. Example) Stock_plate3, A7")
+    
+    return common_parts
+
 def find_source_well(sources_, name, required_volume):
     sources_row = sources_[(sources_['name'] == name) & (sources_['volume'] >= required_volume)]
     if sources_row.empty:
@@ -86,7 +339,9 @@ def generate_protocol(designs, destination_name, sources, plate_type=96, naming 
             "Volume": 0,
             "Note": group_name
         }
-
+        
+        # st.write(design)
+    
         output_row = {
             "name": f"{design[0]['name']}-{design[1]['name']}-{design[2]['name']}-{design[3]['name']}" if naming == "TU" else f"{naming}_{group_name}_{group_counters[group_name]}",
             "plate": dest_name,
@@ -126,6 +381,219 @@ def validate_stock_location(stock_plate, stock_code):
     """Stock plate와 location 유효성 검사"""
     return stock_plate.strip() != "" and re.match(r'^[A-Ha-h][1-9]$|^[A-Ha-h]1[0-2]$', stock_code)
 
+def load_tu_design_from_json(uploaded_file):
+    """Load TU design from JSON file.
+    Expected JSON format:
+    [
+        {
+            "group_name": "Group_1",
+            "number_of_tu": 3,
+            "designs": [
+                {
+                    "Promoter": ["P1", "P2"],
+                    "CDS": ["C1"],
+                    "Terminator": ["T1", "T2"],
+                    "Connector": ["N1"]
+                },
+                ...
+            ]
+        },
+        ...
+    ]
+    """
+    try:
+        import json
+        data = json.load(uploaded_file)
+        return data
+    except Exception as e:
+        st.error(f"Error loading TU design from JSON: {str(e)}")
+        return None
+
+def create_design_template_files():
+    """Create template files for TU design import."""
+    # CSV template
+    csv_template = """Group,Promoter,CDS,Terminator,Connector,Number_of_TU
+Group_1,(P)promoter1;(P)promoter2,(C)gene1,(T)terminator1;(T)terminator2,(N)connector1,3
+Group_2,(P)promoter3,(C)gene2;(C)gene3,(T)terminator3,(N)connector2,2"""
+    
+    # JSON template
+    json_template = [
+        {
+            "group_name": "Group_1",
+            "number_of_tu": 3,
+            "designs": [
+                {
+                    "Promoter": ["(P)promoter1", "(P)promoter2"],
+                    "CDS": ["(C)gene1"],
+                    "Terminator": ["(T)terminator1", "(T)terminator2"],
+                    "Connector": ["(N)connector1"]
+                },
+                {
+                    "Promoter": ["(P)promoter1", "(P)promoter2"],
+                    "CDS": ["(C)gene1"],
+                    "Terminator": ["(T)terminator1", "(T)terminator2"],
+                    "Connector": ["(N)connector_internal"]
+                },
+                {
+                    "Promoter": ["(P)promoter1", "(P)promoter2"],
+                    "CDS": ["(C)gene1"],
+                    "Terminator": ["(T)terminator1", "(T)terminator2"],
+                    "Connector": ["(N)connector2"]
+                }
+            ]
+        }
+    ]
+    
+    return csv_template, json_template
+
+def create_ot2_labware_settings(sheet_names, destination_names, key_prefix):
+    """Create OT2 labware position and type settings."""
+    labware_options = [
+        "corning_96_wellplate_360ul_flat",
+        "opentrons_96_tiprack_300ul",
+        "biorad_96_wellplate_200ul_pcr",
+        "nest_96_wellplate_2ml_deep",
+        "usascientific_12_reservoir_22ml",
+        "opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap"
+    ]
+    
+    plate_posit = []
+    plate_types = []
+    
+    # Source plates
+    for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
+        col1, col2 = st.columns(2)
+        with col1:
+            position = st.selectbox(
+                options=range(1, 12), 
+                label=f"{plate} position:", 
+                index=i, 
+                key=f"{key_prefix}_pos_{i}"
+            )
+        with col2:
+            labware_type = st.selectbox(
+                f"{plate} labware type", 
+                options=labware_options, 
+                index=0, 
+                key=f"{key_prefix}_labware_type_{i}"
+            )
+        plate_posit.append([plate, position])
+        plate_types.append([plate, labware_type])
+    
+    # Destination plates
+    for i, plate in enumerate(destination_names):
+        col1, col2 = st.columns(2)
+        with col1:
+            position = st.selectbox(
+                options=range(1, 12), 
+                label=f"{plate} position:", 
+                index=i, 
+                key=f"{key_prefix}_dpos_{i}"
+            )
+        with col2:
+            labware_type = st.selectbox(
+                f"{plate} labware type", 
+                options=labware_options, 
+                index=0, 
+                key=f"{key_prefix}_dlabware_type_{i}"
+            )
+        plate_posit.append([plate, position])
+        plate_types.append([plate, labware_type])
+    
+    # Tiprack
+    plate_posit.append([
+        "tiprack", 
+        st.selectbox(
+            options=range(1, 12), 
+            label="Tiprack position:", 
+            index=len(sheet_names)+len(destination_names), 
+            key=f"{key_prefix}_tiprack"
+        )
+    ])
+    
+    return plate_posit, plate_types
+
+def create_ot2_section(protocol, sheet_names, destination_names, key_prefix):
+    """Create complete OT2 convert section."""
+    with st.expander("OT2 convert:"):
+        metadata = st.text_area(
+            value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", 
+            label="Metadata", 
+            key=f'{key_prefix}_metadata'
+        ).replace("\n", "\n    ")
+        
+        requirements = st.text_area(
+            value='"robotType": "OT-2", "apiLevel": "2.17"', 
+            label="Requirements", 
+            key=f'{key_prefix}_requirements'
+        )
+        
+        plate_posit, plate_types = create_ot2_labware_settings(sheet_names, destination_names, key_prefix)
+        converted_protocol = protocol_to_ot2_script(protocol, metadata, requirements, plate_posit)
+        st.code(converted_protocol, language='python')
+        
+        return converted_protocol
+
+def load_excel_sources(uploaded_file, plate_names, default_vol):
+    """Load sources from Excel file."""
+    sources = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
+    xls = pd.ExcelFile(uploaded_file)
+    sheet_names = xls.sheet_names
+    
+    for i, sheet_name in enumerate(sheet_names):
+        df_sheet = pd.read_excel(uploaded_file, sheet_name=sheet_name)
+        
+        # Find starting position ('A' cell)
+        for row_index in range(len(df_sheet)):
+            for col_index in range(len(df_sheet.columns)):
+                cell_value = df_sheet.iloc[row_index, col_index]
+                if pd.notna(cell_value) and cell_value == 'A':
+                    sr, sc = (row_index, col_index)
+
+        df_sheet = pd.read_excel(uploaded_file, sheet_name=sheet_name, skiprows=sr, index_col=sc)
+
+        for row_index, row in df_sheet.iterrows():
+            for col_index, item in row.items():
+                if pd.notna(item):
+                    data = {
+                        "name": item,
+                        "plate": plate_names[i].replace(" ", "_"),
+                        "well": "".join([row_index, str(col_index)]),
+                        "volume": default_vol,
+                        "note": None
+                    }
+                    sources = pd.concat([sources, pd.DataFrame([data])])
+
+    sources = sources.assign(type=sources['name'].apply(lambda x:
+        'Promoter' if x.startswith('(P)') else
+        'CDS' if x.startswith('(C)') else
+        'Connector' if x.startswith('(N)') else
+        'Terminator' if x.startswith('(T)') else
+        None))
+    
+    return sources, sheet_names
+
+def load_csv_sources(uploaded_file):
+    """Load sources from CSV file."""
+    df = pd.read_csv(uploaded_file, encoding='iso-8859-1')
+    sources = pd.DataFrame(columns=["type", "name", "plate", "well", "volume", "note"])
+    
+    sources['type'] = df['type']
+    sources['name'] = df['name']
+    sources['plate'] = df['plate']
+    sources['well'] = df['well']
+    sources['volume'] = df['volume']
+    sources['note'] = df['note']
+    
+    return sources
+
+def validate_source_types(sources):
+    """Validate that all required source types are present."""
+    for type_item in ['Promoter', 'CDS', 'Terminator', 'Connector']:
+        if sources[sources['type'] == type_item].empty:
+            st.error(f"No rows with type '{type_item}' found in the sources. Please check your input file.")
+            st.stop()
+
 
 if "commons_row" not in st.session_state:
     st.session_state.commons_row = 1  # 초기 행 수 설정
@@ -137,7 +605,6 @@ st.title("Assembly Design Tool")
 st.write("This tool is designed to assist in the assembly design process for synthetic biology projects. It allows users to upload an Excel file containing information about parts and their respective volumes, and then generates assembly designs based on user-defined parameters.")
 st.write(">## Input")
 if st.checkbox('Legacy_Input', value = False):
-
     ## 파일 업로드 및 데이터 처리
     uploaded_file = st.file_uploader("Upload your Stocking Plate Excel file", type="xlsx")
     if uploaded_file is None:
@@ -160,36 +627,7 @@ if st.checkbox('Legacy_Input', value = False):
         with vol_col2:
             default_vol = st.number_input("Default volume", value=10000, min_value=0, step=10, label_visibility="collapsed")
 
-        sources = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
-
-        for i, sheet_name in enumerate(sheet_names):
-            df_sheet = pd.read_excel(uploaded_file, sheet_name=sheet_name)
-            for row_index in range(len(df_sheet)):
-                for col_index in range(len(df_sheet.columns)):
-                    cell_value = df_sheet.iloc[row_index, col_index]
-                    if pd.notna(cell_value) and cell_value == 'A':  # 'A'로 시작하는 행 감지
-                        sr, sc = (row_index, col_index)
-
-            df_sheet = pd.read_excel(uploaded_file, sheet_name=sheet_name, skiprows=sr, index_col=sc)
-
-            for row_index, row in df_sheet.iterrows():
-                for col_index, item in row.items():
-                    if pd.notna(item):
-                        data = {
-                            "name": item,
-                            "plate": plate_names[i].replace(" ", "_"),  # 사용자가 입력한 plate_name 사용
-                            "well": "".join([row_index, str(col_index)]),
-                            "volume": default_vol,
-                            "note": None
-                        }
-                        sources = pd.concat([sources, pd.DataFrame([data])])
-
-        sources = sources.assign(type=sources['name'].apply(lambda x:
-            'Promoter' if x.startswith('(P)') else
-            'CDS' if x.startswith('(C)') else
-            'Connector' if x.startswith('(N)') else
-            'Terminator' if x.startswith('(T)') else
-            None))
+        sources, sheet_names = load_excel_sources(uploaded_file, plate_names, default_vol)
         
         # 플레이트별로 데이터프레임 표시
         with st.expander("Sourceplate"):
@@ -207,28 +645,11 @@ else:
     except:
         sourceplate_name = "source"
 
-    # sourceplate_name = "source"
-
-    # st.write(uploaded_file)
     if uploaded_file != None:
-        df = pd.read_csv(uploaded_file, encoding='iso-8859-1')
-        # st.write(df)
-        # default_vol = st.number_input("default volume", value = 100, min_value = 0, step = 10)
-        
-        sources = pd.DataFrame(columns = ["type", "name","plate", "well", "volume","note"])
-        
-        sources['type'] = df['type']
-        sources['name'] = df['name']
-        sources['plate'] = df['plate']
-        sources['well'] = df['well']
-        sources['volume'] = df['volume']
-        sources['note'] = df['note']
-
+        sources = load_csv_sources(uploaded_file)
         st.dataframe(sources)
-        for type_item in ['Promoter', 'CDS', 'Terminator', 'Connector']:
-            if sources[sources['type'] == type_item].empty:
-                st.error(f"No rows with type '{type_item}' found in the sources. Please check your input file.")
-                st.stop()
+        validate_source_types(sources)
+        sheet_names = sources['plate'].unique().tolist()  # For compatibility with OT2 functions
 ####################################################################################
 sources_org = sources.copy()
 
@@ -288,6 +709,86 @@ for i in range(num_groups):
 
 # TU designs
 st.write("### TU design")
+
+# Initialize session state for design data
+if "loaded_design_data" not in st.session_state:
+    st.session_state.loaded_design_data = None
+
+# File upload section for TU design
+with st.expander("Load TU Design from File (Optional)"):
+    st.write("You can upload a CSV or JSON file to load predefined TU designs. The uploaded design will be used as initial values and can be manually modified.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("**Upload Design File:**")
+        design_file = st.file_uploader(
+            "Choose a file", 
+            type=['csv', 'json'], 
+            key="design_file_uploader",
+            help="Upload CSV or JSON file with TU design data"
+        )
+        
+        if design_file is not None:
+            file_extension = design_file.name.split('.')[-1].lower()
+            
+            if file_extension == 'csv':
+                loaded_data = load_tu_design_from_csv(design_file)
+            elif file_extension == 'json':
+                loaded_data = load_tu_design_from_json(design_file)
+            else:
+                st.error("Unsupported file format. Please upload CSV or JSON files.")
+                loaded_data = None
+            
+            if loaded_data:
+                st.session_state.loaded_design_data = loaded_data
+                st.success(f"Successfully loaded {len(loaded_data)} group(s) from {design_file.name}")
+                
+                # Display loaded data preview
+                for i, group in enumerate(loaded_data):
+                    st.write(f"**Group {i+1}:** {group['group_name']} ({group['number_of_tu']} TUs)")
+    
+    with col2:
+        st.write("**Download Template Files:**")
+        
+        # Create template files
+        csv_template, json_template = create_design_template_files()
+        
+        # Download buttons for templates
+        st.download_button(
+            label="Download CSV Template",
+            data=csv_template,
+            file_name="tu_design_template.csv",
+            mime="text/csv",
+            help="Download a CSV template file to fill in your TU design"
+        )
+        
+        import json
+        json_str = json.dumps(json_template, indent=2)
+        st.download_button(
+            label="Download JSON Template", 
+            data=json_str,
+            file_name="tu_design_template.json",
+            mime="application/json",
+            help="Download a JSON template file to fill in your TU design"
+        )
+
+# Use loaded data to update group settings if available
+if st.session_state.loaded_design_data:
+    # Update user_defined_groups based on loaded data
+    user_defined_groups = []
+    user_defined_groups_nop = []
+    user_defined_groups_roa = []
+    
+    for group_data in st.session_state.loaded_design_data:
+        user_defined_groups.append(group_data['group_name'])
+        user_defined_groups_nop.append(group_data['number_of_tu'])
+        user_defined_groups_roa.append(1)  # Default repeats
+    
+    # Update num_groups in session state to reflect loaded data
+    if 'loaded_groups_count' not in st.session_state:
+        st.session_state.loaded_groups_count = len(st.session_state.loaded_design_data)
+
 designs = []
 
 ## connector 순서 및 그룹 설정
@@ -322,17 +823,33 @@ for g, group_name in enumerate(user_defined_groups):
         selected_items = {}
         for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
             with cols_placeholder[col]:
+                # Get default values from loaded data if available
+                default_values = []
+                if (st.session_state.loaded_design_data and 
+                    g < len(st.session_state.loaded_design_data) and 
+                    row < len(st.session_state.loaded_design_data[g]['designs'])):
+                    loaded_design = st.session_state.loaded_design_data[g]['designs'][row]
+                    default_values = loaded_design.get(category, [])
+                    # Filter to only include values that exist in options
+                    default_values = [v for v in default_values if v in options[category]]
+                
                 if category == "Connector":
                     items = options[category]
+                    # For connectors, use single selection with loaded default or original logic
+                    if default_values:
+                        default_index = connector_options.index(default_values[0]) if default_values[0] in connector_options else 0
+                    else:
+                        default_index = (
+                            connector_options.index(connector_ex[0]) if row == 0   # 첫 번째 행
+                            else connector_options.index(connector_ex[row]) if row == rows - 1 # 마지막 행
+                            else connector_options.index(connector_endo[row-1])  # 그 외
+                        )
+                    
                     selected_items[category] = [st.selectbox(
                         category,
                         items,
                         key=f"select_{row}_{col}_{g}",
-                        index=(
-                            connector_options.index(connector_ex[0]) if row == 0   # 첫 번째 행
-                            else connector_options.index(connector_ex[row]) if row == rows - 1 # 마지막 행
-                            else connector_options.index(connector_endo[row-1])  # 그 외
-                        ),
+                        index=default_index,
                         label_visibility="collapsed",
                         disabled=True
                     )]
@@ -342,6 +859,7 @@ for g, group_name in enumerate(user_defined_groups):
                     selected_items[category] = st.multiselect(
                         category,
                         items,
+                        default=default_values,  # Use loaded default values
                         key=f"select_{row}_{col}_{g}",
                         label_visibility="collapsed",
                         # max_selections= 1 if category == "CDS" else None
@@ -413,45 +931,16 @@ for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
 st.write("")
 
 # 공통 부품 추가
-# others = sources[sources['type'].isna()]['name'].drop_duplicates().tolist()
-commons = []
-col1, col2, col3 = st.columns([3, 1, 8])
-with col1: st.write("### Lv1 Common parts")
 st.write('''Set the parts to be included in every Lv1 TU. Specify the plate name and location.  
             (If the part name exists in the source, that source will be used.)
             ''')
-with col2: 
-    if st.button('add'):
-        st.session_state.commons_row += 1
-with col3: 
-    if st.button('del') and st.session_state.commons_row > 0:
-        st.session_state.commons_row -= 1
-
-col1, col2, col3, col4 = st.columns([3,2,2,2])
-with col1: st.write("Part name")
-with col2: st.write("Volume (ul)")
-with col3: st.write("Stock plate")
-with col4: st.write("Stock location (Well)")
-for row in range(st.session_state.commons_row):
-    col1, col2, col3, col4 = st.columns([3,2,2,2])
-    with col1:
-        selected_name = st.text_input(label="name", key=f"selectname_{row}", label_visibility="collapsed", value= "GGAmixture")
-        name_exist = selected_name in sources['name'].values
-    with col2:
-        volume = st.number_input(label="vol", value=2., step=0.1, min_value = 0., key=f"volume_{row}", label_visibility="collapsed")
-    with col3:
-        stock_plate = st.text_input(label="source plate", key = f"common_source_plate_{row}", label_visibility = "collapsed", value = "GGAmix_plate", disabled = name_exist)
-    with col4:
-        stock_code = st.text_input(label="stock location", key = f"common_stock_location_{row}", label_visibility = "collapsed", value = "A1", disabled = name_exist)
-    commons.append({'name': selected_name, 'volume': volume, 'in_source': name_exist, 'plate': stock_plate, 'well': stock_code})
-
-    if selected_name in sources['name'].values:
-        current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
-        st.success(f"{selected_name} detected {current_vol} in sources")
-    elif validate_stock_location(stock_plate, stock_code):
-        st.warning(f"Please ensure {selected_name} is available in {stock_plate}, {stock_code}")
-    else:
-        st.error("Invalid Stock plate or Stock location format. Example) Stock_plate3, A7")
+commons = create_common_parts_section(
+    "Lv1 Common parts", 
+    "commons_row", 
+    "GGAmixture", 
+    "GGAmix_plate", 
+    sources
+)
 
 for i in range(3):
     st.write("")
@@ -465,47 +954,21 @@ for i in range(5):
     st.write("")
 
 ## lv2 commons
-lv2_commons = []
-col1, col2, col3 = st.columns([3, 1, 8])
-with col1: st.write("### Lv2 Common parts")
-with col2: 
-    if st.button('add', key = "add2"):
-        st.session_state.commons_row2 += 1
-with col3: 
-    if st.button('del', key = "del2") and st.session_state.commons_row2 > 0:
-        st.session_state.commons_row2 -= 1
 st.write('''Set the parts to be included in every Lv2 outputs. Specify the plate name and location.  
             (If the part name exists in the provided source, it will be used.)''')
 
-col1, col2, col3, col4 = st.columns([3,2,2,2])
-with col1: st.write("Part name")
-with col2: st.write("Volume (ul)")
-with col3: st.write("Stock plate")
-with col4: st.write("Stock location")
-for row in range(st.session_state.commons_row2):
-    col1, col2, col3, col4 = st.columns([3,2,2,2])
-    with col1:
-        selected_name = st.text_input(label="name", key=f"selectname2_{row}", label_visibility="collapsed", value= "Vector")
-        name_exist = selected_name in sources['name'].values
-    with col2:
-        volume = st.number_input(label="vol", value=10., step=0.1, min_value = 0., key=f"volume2_{row}", label_visibility="collapsed")
-    with col3:
-        stock_plate = st.text_input(label="source plate", key = f"common2_source_plate_{row}", label_visibility = "collapsed", value = "Vector_plate", disabled=name_exist)
-    with col4:
-        stock_code = st.text_input(label="stock location", key = f"common2_stock_location_{row}", label_visibility = "collapsed", value = "A1", disabled=name_exist)
-    lv2_commons.append({'name': selected_name, 'volume': volume, 'in_source': name_exist, 'plate': stock_plate, 'well': stock_code})
-    
-    for common in lv2_commons:
-        if total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > lv1_maxvol:
-            st.warning(f"Warning: Total volume({total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>{lv1_maxvol})!")
-    
-    if selected_name in sources['name'].values:
-        current_vol = sources.loc[sources['name'] == selected_name, ['volume']].values.sum()
-        st.success(f"{selected_name} detected {current_vol} in sources")
-    elif validate_stock_location(stock_plate, stock_code):
-        st.warning(f"Please ensure {selected_name} is available in {stock_plate}, {stock_code}")
-    else:
-        st.error("Invalid Stock plate or Stock location format. Example) Stock_plate3, A7")
+lv2_commons = create_common_parts_section(
+    "Lv2 Common parts", 
+    "commons_row2", 
+    "Vector", 
+    "Vector_plate", 
+    sources
+)
+
+# Volume validation for Lv2
+for common in lv2_commons:
+    if total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > lv1_maxvol:
+        st.warning(f"Warning: Total volume({total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>{lv1_maxvol})!")
 
 
 ## add common parts to sources
@@ -626,44 +1089,8 @@ if st.session_state.get("apply_clicked", False):
     with st.expander("Generated Lv1 output plate (*for reference):"):
         st.write(lv1_outputs.reset_index(drop=True))
     
-
-    with st.expander("OT2 convert:"):
-        lv1_metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata").replace("\n", "\n    ")
-        lv1_requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements")
-        labware_options = [
-                        "corning_96_wellplate_360ul_flat",
-                        "opentrons_96_tiprack_300ul",
-                        "biorad_96_wellplate_200ul_pcr",
-                        "nest_96_wellplate_2ml_deep",
-                        "usascientific_12_reservoir_22ml",
-                        "opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap"
-                    ]
-        lv1_plate_posit = []
-        lv1_plate_types = []
-        
-        for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
-            col1, col2 = st.columns(2)
-            with col1:
-                position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv1_pos_{i}")
-            with col2:
-                labware_type = st.selectbox(f"{plate} labware type", options=labware_options, index=0, key=f"lv1_labware_type_{i}")
-            lv1_plate_posit.append([plate, position])
-            lv1_plate_types.append([plate, labware_type])
-        
-        for i, plate in enumerate(lv1_destination_names):
-            col1, col2 = st.columns(2)
-            with col1:
-                position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv1_dpos_{i}")
-            with col2:
-                labware_type = st.selectbox(f"{plate} labware type", options=labware_options, index=0, key=f"lv1_dlabware_type_{i}")
-            lv1_plate_posit.append([plate, position])
-            lv1_plate_types.append([plate, labware_type])
-        
-        # for j in range(lv1_plate_len):
-        #     lv1_plate_posit.append([f"destination_{j}", st.selectbox(options=range(1, 12), label=f"Destination_{j+1} rack position:", key = f'lv1_destination_{j}', index=i+j+1)])
-        lv1_plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="Tiprack position:", index=i+2)])
-        converted_protocol = protocol_to_ot2_script(lv1_protocol, lv1_metadata, lv1_requirements, lv1_plate_posit)
-        st.code(converted_protocol, language='python')
+    # OT2 convert section
+    create_ot2_section(lv1_protocol, sheet_names, lv1_destination_names, "lv1")
 
 
     st.write("#### Lv2")
@@ -694,7 +1121,7 @@ if st.session_state.get("apply_clicked", False):
 
     lv2_sources = pd.concat([lv1_sources, lv1_outputs])
     # st.write(lv2_destination_names)
-    lv2_protocol, lv2_outputs = generate_protocol(designs2, lv2_destination_names, lv2_sources, plate_type=lv2_plate_type)
+    lv2_protocol, lv2_outputs = generate_protocol(designs2, lv2_destination_names, lv2_sources, plate_type=lv2_plate_type, naming=None)
 
     
     st.write("Generated Lv2 mapping:")
@@ -706,49 +1133,5 @@ if st.session_state.get("apply_clicked", False):
     st.write("updated sources:")
     st.write(lv2_sources.reset_index(drop=True))
 
-    # with st.expander("OT2 convert:"):
-    #     lv2_metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata", key="lv2_meta").replace("\n", "\n    ")
-    #     lv2_requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements", key="lv2_reqs")
-    #     lv2_plate_posit = []
-    #     lv2_plate_posit.append(["destination", st.selectbox(options=range(1, 12), label="destination_rack position:", index=i+1, key = "lv2_dpos")])
-    #     lv2_plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="tibrack position:", index=i+2, key = "lv2_tpos")])
-    #     converted_protocol = protocol_to_ot2_script(lv2_protocol, lv2_metadata, lv2_requirements, lv2_plate_posit)
-    #     st.code(converted_protocol, language='python')
-
-    with st.expander("OT2 convert:"):
-        lv2_metadata = st.text_area(value="""'protocolName': 'Custom Protocol',\n'robotType': 'OT-2'""", label="Metadata", key = 'lv2_metadata').replace("\n", "\n    ")
-        lv2_requirements = st.text_area(value='"robotType": "OT-2", "apiLevel": "2.17"', label="Requirements", key = 'lv2_requirements')
-        labware_options = [
-                        "corning_96_wellplate_360ul_flat",
-                        "opentrons_96_tiprack_300ul",
-                        "biorad_96_wellplate_200ul_pcr",
-                        "nest_96_wellplate_2ml_deep",
-                        "usascientific_12_reservoir_22ml",
-                        "opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap"
-                    ]
-        lv2_plate_posit = []
-        lv2_plate_types = []
-        
-        for i, plate in enumerate([s.replace(" ", "_") for s in sheet_names]):
-            col1, col2 = st.columns(2)
-            with col1:
-                position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv2_pos_{i}")
-            with col2:
-                labware_type = st.selectbox(f"{plate} labware type", options=labware_options, index=0, key=f"lv2_labware_type_{i}")
-            lv2_plate_posit.append([plate, position])
-            lv2_plate_types.append([plate, labware_type])
-        
-        for i, plate in enumerate(lv2_destination_names):
-            col1, col2 = st.columns(2)
-            with col1:
-                position = st.selectbox(options=range(1, 12), label=f"{plate} position:", index=i, key = f"lv2_dpos_{i}")
-            with col2:
-                labware_type = st.selectbox(f"{plate} labware type", options=labware_options, index=0, key=f"lv2_dlabware_type_{i}")
-            lv2_plate_posit.append([plate, position])
-            lv2_plate_types.append([plate, labware_type])
-        
-        # for j in range(lv1_plate_len):
-        #     lv1_plate_posit.append([f"destination_{j}", st.selectbox(options=range(1, 12), label=f"Destination_{j+1} rack position:", key = f'lv1_destination_{j}', index=i+j+1)])
-        lv2_plate_posit.append(["tiprack", st.selectbox(options=range(1, 12), label="Tiprack position:", index=i+2, key = "lv2_tiprack")])
-        converted_protocol = protocol_to_ot2_script(lv2_protocol, lv2_metadata, lv2_requirements, lv2_plate_posit)
-        st.code(converted_protocol, language='python')
+    # OT2 convert section
+    create_ot2_section(lv2_protocol, sheet_names, lv2_destination_names, "lv2")
