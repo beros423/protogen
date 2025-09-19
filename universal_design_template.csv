@@ -1,4 +1,4 @@
-Promoter,CDS,Terminator,Backbone
-pTrc;pLac,gfp,rrnB_T1,pUC19
-pBAD,rfp;bfp,rrnB_T2,pBR322
-pTet,yfp,dbl_term,pBR322
+Promoter,CDS,Terminator,GGAmix,Connector
+(P)TDH;(P)CCW12;(P)PGK1,(C)mTurquiose2,(T)ENO1,GGAmix,(N)s|1
+(P)RPL18B,(C)Venus;(C)mRuby2,(T)ISSA1,GGAmix,(N)1|2
+(P)RAD27,(C)I-Scei (ORF);(C)Cas9,(T)ADH1,GGAmix,(N)2|e

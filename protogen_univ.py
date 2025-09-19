@@ -193,6 +193,7 @@ if uploaded_file is not None:
                 st.success(f"✅ Loaded {len(loaded_data)} design group(s)")
                 
                 # Preview loaded data (without nested expander)
+                st.write(loaded_data)
                 for group in loaded_data:
                     st.write(f"**{group['group_name']}** ({len(group['assemblies'])} assemblies)")
                     st.write(f"Part types: {', '.join(group['part_types'])}")
@@ -212,7 +213,7 @@ if uploaded_file is not None:
         default_rows = 3
         if st.session_state.loaded_design_data:
             suggested_rows = len(st.session_state.loaded_design_data[0]['assemblies'])
-            st.info(f"💡 Loaded design has {suggested_rows} assemblies")
+            st.info(f"Loaded design has {suggested_rows} assemblies")
             default_rows = suggested_rows
         rows = st.number_input(label="Number of assembly", value=default_rows, min_value=1)
         
@@ -221,7 +222,7 @@ if uploaded_file is not None:
         default_cols = 4
         if st.session_state.loaded_design_data:
             suggested_cols = len(st.session_state.loaded_design_data[0]['part_types'])
-            st.info(f"💡 Loaded design has {suggested_cols} part types")
+            st.info(f"Loaded design has {suggested_cols} part types")
             default_cols = suggested_cols
         cols = st.number_input(label = "Parts of each wells", value = default_cols, step = 1, min_value = 0)
 
@@ -314,7 +315,6 @@ if uploaded_file is not None:
     
     # Show info if loaded design data is available
     if st.session_state.loaded_design_data:
-        st.info("🔄 Using loaded design data as initial values. You can still modify selections below.")
         loaded_assemblies = st.session_state.loaded_design_data[0]['assemblies']
     else:
         loaded_assemblies = []
