@@ -671,52 +671,13 @@ lv2_deadvol = st.number_input(label = "Dead volume for each TU", min_value = 0.,
 # st.session_state.lv2_deadvol = lv2_deadvol
 st.write("="*100)
 
-st.write("### Groups")
-# 사용자에게 그룹 지정 옵션 제공
-user_defined_groups = []
-user_defined_groups_nop = []
-user_defined_groups_roa = []
-
-# 사용자 정의 그룹 수 입력을 한 줄에 배치
-group_col1, group_col2 = st.columns([2, 8])
-with group_col1:
-    st.write("* Number of groups")
-with group_col2:
-    num_groups = st.number_input("Number of groups", min_value=1, value=1, step=1, label_visibility="collapsed")
-
-# 각 그룹에 대해 사용자로부터 입력받기
-group_col1, group_col2, group_col3, group_col4 = st.columns([2, 3, 2, 2])
-with group_col2:
-    st.write("Group names")
-with group_col3:
-    st.write("Number of TU")
-with group_col4:
-    st.write("Repeats of assembly")
-
-for i in range(num_groups):
-    group_col1, group_col2, group_col3, group_col4 = st.columns([2, 3, 2, 2])
-    with group_col1:
-        st.write(f"* Group {i+1}")
-    with group_col2:
-        group_name = st.text_input(f"Group {i+1} Name", value=f"Group_{i+1}", key=f"group_name_{i}", label_visibility="collapsed")
-        user_defined_groups.append(group_name)
-    with group_col3:
-        group_nop = st.number_input(f"Number of TU", value = 3, key = f"Group_noa{i}", min_value = 1, step = 1, label_visibility = "collapsed")
-        user_defined_groups_nop.append(group_nop)
-    with group_col4:
-        group_roa = st.number_input(f"Repeats of assembly", value = 1, key = f"Group_roa{i}", min_value = 1, step = 1, label_visibility = "collapsed", disabled=True)
-        user_defined_groups_roa.append(group_roa)
-
-# TU designs
-st.write("### TU design")
-
 # Initialize session state for design data
 if "loaded_design_data" not in st.session_state:
     st.session_state.loaded_design_data = None
 
-# File upload section for TU design
+# File upload section for TU design (moved above Groups section)
 with st.expander("Load TU Design from File (Optional)"):
-    st.write("You can upload a CSV or JSON file to load predefined TU designs. The uploaded design will be used as initial values and can be manually modified.")
+    st.write("You can upload a CSV or JSON file to load predefined TU designs. The uploaded design will be used as initial values for Groups and TU design.")
     
     col1, col2 = st.columns(2)
     
@@ -773,21 +734,58 @@ with st.expander("Load TU Design from File (Optional)"):
             help="Download a JSON template file to fill in your TU design"
         )
 
-# Use loaded data to update group settings if available
+st.write("### Groups")
+# 사용자에게 그룹 지정 옵션 제공
+user_defined_groups = []
+user_defined_groups_nop = []
+user_defined_groups_roa = []
+
+# Set default values from loaded data if available
+default_num_groups = 1
 if st.session_state.loaded_design_data:
-    # Update user_defined_groups based on loaded data
-    user_defined_groups = []
-    user_defined_groups_nop = []
-    user_defined_groups_roa = []
+    default_num_groups = len(st.session_state.loaded_design_data)
+
+# 사용자 정의 그룹 수 입력을 한 줄에 배치
+group_col1, group_col2 = st.columns([2, 8])
+with group_col1:
+    st.write("* Number of groups")
+with group_col2:
+    num_groups = st.number_input("Number of groups", min_value=1, value=default_num_groups, step=1, label_visibility="collapsed")
+
+# 각 그룹에 대해 사용자로부터 입력받기
+group_col1, group_col2, group_col3, group_col4 = st.columns([2, 3, 2, 2])
+with group_col2:
+    st.write("Group names")
+with group_col3:
+    st.write("Number of TU")
+with group_col4:
+    st.write("Repeats of assembly")
+
+for i in range(num_groups):
+    # Set default values from loaded data if available
+    default_group_name = f"Group_{i+1}"
+    default_group_nop = 3
     
-    for group_data in st.session_state.loaded_design_data:
-        user_defined_groups.append(group_data['group_name'])
-        user_defined_groups_nop.append(group_data['number_of_tu'])
-        user_defined_groups_roa.append(1)  # Default repeats
+    if st.session_state.loaded_design_data and i < len(st.session_state.loaded_design_data):
+        loaded_group = st.session_state.loaded_design_data[i]
+        default_group_name = loaded_group['group_name']
+        default_group_nop = loaded_group['number_of_tu']
     
-    # Update num_groups in session state to reflect loaded data
-    if 'loaded_groups_count' not in st.session_state:
-        st.session_state.loaded_groups_count = len(st.session_state.loaded_design_data)
+    group_col1, group_col2, group_col3, group_col4 = st.columns([2, 3, 2, 2])
+    with group_col1:
+        st.write(f"* Group {i+1}")
+    with group_col2:
+        group_name = st.text_input(f"Group {i+1} Name", value=default_group_name, key=f"group_name_{i}", label_visibility="collapsed")
+        user_defined_groups.append(group_name)
+    with group_col3:
+        group_nop = st.number_input(f"Number of TU", value=default_group_nop, key=f"Group_noa{i}", min_value=1, step=1, label_visibility="collapsed")
+        user_defined_groups_nop.append(group_nop)
+    with group_col4:
+        group_roa = st.number_input(f"Repeats of assembly", value=1, key=f"Group_roa{i}", min_value=1, step=1, label_visibility="collapsed", disabled=True)
+        user_defined_groups_roa.append(group_roa)
+
+# TU designs
+st.write("### TU design")
 
 designs = []
 
