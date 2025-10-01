@@ -639,7 +639,7 @@ if st.checkbox('Legacy_Input', value = False):
 else:
     uploaded_file = st.file_uploader("Upload your Stocking Plate CSV file", type="csv")
     if uploaded_file == None:
-        uploaded_file = "./SourcePlate_Sample2.csv"
+        uploaded_file = "./SourcePlate_Sample.csv"
     try:
         sourceplate_name = st.text_input("Sourceplate name", value = uploaded_file.name.split(".")[0])
     except:
