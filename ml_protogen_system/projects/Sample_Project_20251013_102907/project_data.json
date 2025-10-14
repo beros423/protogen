@@ -1,0 +1,244 @@
+{
+  "project_name": "A1",
+  "project_description": "test",
+  "experiment_type": "Protein Expression",
+  "optimization_target": "Maximize",
+  "target_metric": "Protein_Expression_Level",
+  "expected_samples": 1000,
+  "created_at": "2025-10-13T10:30:59.520886",
+  "initial_data": [
+    {
+      "Unnamed: 0": 0,
+      "Well": "A01",
+      "Sample_ID": "Sample_001",
+      "CDS": "Gene_D",
+      "Inducer_Conc": 0.9122598161138248,
+      "Promoter": "P1",
+      "Temperature": 34.56098176450298,
+      "pH": 6.7,
+      "Expression_Level": 190.0
+    },
+    {
+      "Unnamed: 0": 1,
+      "Well": "A02",
+      "Sample_ID": "Sample_002",
+      "CDS": "Gene_A",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.7,
+      "Expression_Level": 206.7
+    },
+    {
+      "Unnamed: 0": 2,
+      "Well": "A03",
+      "Sample_ID": "Sample_003",
+      "CDS": "Gene_D",
+      "Inducer_Conc": 0.9329934886589508,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.7,
+      "Expression_Level": 244.6
+    },
+    {
+      "Unnamed: 0": 3,
+      "Well": "A04",
+      "Sample_ID": "Sample_004",
+      "CDS": "Gene_D",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 33.83008824469663,
+      "pH": 6.714770708682584,
+      "Expression_Level": 144.7
+    },
+    {
+      "Unnamed: 0": 4,
+      "Well": "A05",
+      "Sample_ID": "Sample_005",
+      "CDS": "Gene_D",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.803951745141159,
+      "Expression_Level": 169.1
+    },
+    {
+      "Unnamed: 0": 5,
+      "Well": "A06",
+      "Sample_ID": "Sample_006",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 0.9306283075160358,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.797365663758409,
+      "Expression_Level": 139.6
+    },
+    {
+      "Unnamed: 0": 6,
+      "Well": "A07",
+      "Sample_ID": "Sample_007",
+      "CDS": "Gene_D",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.745351525662967,
+      "Expression_Level": 277.4
+    },
+    {
+      "Unnamed: 0": 7,
+      "Well": "A08",
+      "Sample_ID": "Sample_008",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 0.9868399652670476,
+      "Promoter": "P2",
+      "Temperature": 35.1,
+      "pH": 6.737906633672943,
+      "Expression_Level": 198.1
+    },
+    {
+      "Unnamed: 0": 8,
+      "Well": "A09",
+      "Sample_ID": "Sample_009",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 34.34594716305048,
+      "pH": 6.7,
+      "Expression_Level": 203.6
+    },
+    {
+      "Unnamed: 0": 9,
+      "Well": "A10",
+      "Sample_ID": "Sample_010",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 0.9110002116536442,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.7,
+      "Expression_Level": 159.1
+    },
+    {
+      "Unnamed: 0": 10,
+      "Well": "A11",
+      "Sample_ID": "Sample_011",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 0.8945143871393509,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.7,
+      "Expression_Level": 113.4
+    },
+    {
+      "Unnamed: 0": 11,
+      "Well": "A12",
+      "Sample_ID": "Sample_012",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.7,
+      "Expression_Level": 183.7
+    },
+    {
+      "Unnamed: 0": 12,
+      "Well": "B01",
+      "Sample_ID": "Sample_013",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 0.970150464827971,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.818387902015885,
+      "Expression_Level": 135.8
+    },
+    {
+      "Unnamed: 0": 13,
+      "Well": "B02",
+      "Sample_ID": "Sample_014",
+      "CDS": "Gene_D",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 35.00193541278349,
+      "pH": 6.759227265435819,
+      "Expression_Level": 200.6
+    },
+    {
+      "Unnamed: 0": 14,
+      "Well": "B03",
+      "Sample_ID": "Sample_015",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 0.9322565025545276,
+      "Promoter": "P1",
+      "Temperature": 33.90327069249817,
+      "pH": 6.7,
+      "Expression_Level": 49.6
+    },
+    {
+      "Unnamed: 0": 15,
+      "Well": "B04",
+      "Sample_ID": "Sample_016",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 0.9589627745891502,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.841034997784258,
+      "Expression_Level": 73.6
+    },
+    {
+      "Unnamed: 0": 16,
+      "Well": "B05",
+      "Sample_ID": "Sample_017",
+      "CDS": "Gene_D",
+      "Inducer_Conc": 0.908182402174,
+      "Promoter": "P2",
+      "Temperature": 35.1,
+      "pH": 6.728622988827863,
+      "Expression_Level": 140.8
+    },
+    {
+      "Unnamed: 0": 17,
+      "Well": "B06",
+      "Sample_ID": "Sample_018",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 34.0116411993139,
+      "pH": 6.7,
+      "Expression_Level": 144.9
+    },
+    {
+      "Unnamed: 0": 18,
+      "Well": "B07",
+      "Sample_ID": "Sample_019",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.741203814904484,
+      "Expression_Level": 153.1
+    },
+    {
+      "Unnamed: 0": 19,
+      "Well": "B08",
+      "Sample_ID": "Sample_020",
+      "CDS": "Gene_C",
+      "Inducer_Conc": 1.0,
+      "Promoter": "P1",
+      "Temperature": 35.1,
+      "pH": 6.752111300104464,
+      "Expression_Level": 175.4
+    }
+  ],
+  "target_column": "Expression_Level",
+  "feature_columns": [
+    "Inducer_Conc",
+    "Temperature",
+    "pH"
+  ],
+  "initial_ml_results": {
+    "random_forest": -3.6755897822441077,
+    "gradient_boosting": -4.154035829768581,
+    "linear_regression": -1.751830249563954
+  },
+  "best_score": 0,
+  "initial_training_completed": true
+}
