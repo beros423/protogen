@@ -1,9 +1,9 @@
 {
-  "last_saved": "2025-10-29T11:11:06.086275",
+  "last_saved": "2025-10-29T11:12:32.924235",
   "has_data": true,
   "has_model": true,
   "has_results": true,
-  "current_menu": "새 프로젝트 생성",
+  "current_menu": "ML 모델 학습",
   "data_info": {
     "shape": [
       120,

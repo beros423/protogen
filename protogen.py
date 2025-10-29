@@ -674,6 +674,10 @@ st.write("="*100)
 # Initialize session state for design data
 if "loaded_design_data" not in st.session_state:
     st.session_state.loaded_design_data = None
+if "design_file_loaded" not in st.session_state:
+    st.session_state.design_file_loaded = False
+if "widget_key_suffix" not in st.session_state:
+    st.session_state.widget_key_suffix = 0
 
 # File upload section for TU design (moved above Groups section)
 with st.expander("Load TU Design from File (Optional)"):
@@ -702,12 +706,24 @@ with st.expander("Load TU Design from File (Optional)"):
                 loaded_data = None
             
             if loaded_data:
-                st.session_state.loaded_design_data = loaded_data
-                st.success(f"Successfully loaded {len(loaded_data)} group(s) from {design_file.name}")
-                
-                # Display loaded data preview
-                for i, group in enumerate(loaded_data):
-                    st.write(f"**Group {i+1}:** {group['group_name']} ({group['number_of_tu']} TUs)")
+                # Check if this is a new file upload (not the same as before)
+                if st.session_state.loaded_design_data != loaded_data:
+                    st.session_state.loaded_design_data = loaded_data
+                    st.session_state.design_file_loaded = True
+                    # Increment the key suffix to force widget refresh
+                    st.session_state.widget_key_suffix += 1
+                    st.success(f"Successfully loaded {len(loaded_data)} group(s) from {design_file.name}")
+                    
+                    # Display loaded data preview
+                    for i, group in enumerate(loaded_data):
+                        st.write(f"**Group {i+1}:** {group['group_name']} ({group['number_of_tu']} TUs)")
+                    
+                    # Rerun to refresh all widgets with new data
+                    st.rerun()
+                else:
+                    st.success(f"Using loaded design with {len(loaded_data)} group(s)")
+                    for i, group in enumerate(loaded_data):
+                        st.write(f"**Group {i+1}:** {group['group_name']} ({group['number_of_tu']} TUs)")
     
     with col2:
         st.write("**Download Template Files:**")
@@ -775,13 +791,13 @@ for i in range(num_groups):
     with group_col1:
         st.write(f"* Group {i+1}")
     with group_col2:
-        group_name = st.text_input(f"Group {i+1} Name", value=default_group_name, key=f"group_name_{i}", label_visibility="collapsed")
+        group_name = st.text_input(f"Group {i+1} Name", value=default_group_name, key=f"group_name_{i}_{st.session_state.widget_key_suffix}", label_visibility="collapsed")
         user_defined_groups.append(group_name)
     with group_col3:
-        group_nop = st.number_input(f"Number of TU", value=default_group_nop, key=f"Group_noa{i}", min_value=1, step=1, label_visibility="collapsed")
+        group_nop = st.number_input(f"Number of TU", value=default_group_nop, key=f"Group_noa{i}_{st.session_state.widget_key_suffix}", min_value=1, step=1, label_visibility="collapsed")
         user_defined_groups_nop.append(group_nop)
     with group_col4:
-        group_roa = st.number_input(f"Repeats of assembly", value=1, key=f"Group_roa{i}", min_value=1, step=1, label_visibility="collapsed", disabled=True)
+        group_roa = st.number_input(f"Repeats of assembly", value=1, key=f"Group_roa{i}_{st.session_state.widget_key_suffix}", min_value=1, step=1, label_visibility="collapsed", disabled=True)
         user_defined_groups_roa.append(group_roa)
 
 # TU designs
@@ -846,7 +862,7 @@ for g, group_name in enumerate(user_defined_groups):
                     selected_items[category] = [st.selectbox(
                         category,
                         items,
-                        key=f"select_{row}_{col}_{g}",
+                        key=f"select_{row}_{col}_{g}_{st.session_state.widget_key_suffix}",
                         index=default_index,
                         label_visibility="collapsed",
                         disabled=True
@@ -858,7 +874,7 @@ for g, group_name in enumerate(user_defined_groups):
                         category,
                         items,
                         default=default_values,  # Use loaded default values
-                        key=f"select_{row}_{col}_{g}",
+                        key=f"select_{row}_{col}_{g}_{st.session_state.widget_key_suffix}",
                         label_visibility="collapsed",
                         # max_selections= 1 if category == "CDS" else None
                     )
