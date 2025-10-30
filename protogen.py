@@ -735,129 +735,130 @@ for i in range(num_groups):
 st.write("### TU design")
 
 designs = []
+with st.expander("Detailed TU Design Selection", expanded=False):
+    ## connector 순서 및 그룹 설정
+    connector_sources = sources[sources['type'] == 'Connector']['name'].drop_duplicates().sort_values().tolist()
+    connector_ex = [c for c in connector_sources if c.startswith('(N)s') or c.endswith('e')]
+    connector_ex = sorted(connector_ex, key=lambda x: [0 if c.isalpha() else 1 for c in x])
+    #  st.write(connector_ex)
 
-## connector 순서 및 그룹 설정
-connector_sources = sources[sources['type'] == 'Connector']['name'].drop_duplicates().sort_values().tolist()
-connector_ex = [c for c in connector_sources if c.startswith('(N)s') or c.endswith('e')]
-connector_ex = sorted(connector_ex, key=lambda x: [0 if c.isalpha() else 1 for c in x])
-#  st.write(connector_ex)
-
-connector_endo = sources[(~sources['name'].isin(connector_ex)) & sources['name'].str.startswith('(N)', na=False)]['name'].drop_duplicates().sort_values().tolist()
-connector_options = connector_ex + connector_endo
-# st.write(connector_options)
+    connector_endo = sources[(~sources['name'].isin(connector_ex)) & sources['name'].str.startswith('(N)', na=False)]['name'].drop_duplicates().sort_values().tolist()
+    connector_options = connector_ex + connector_endo
+    # st.write(connector_options)
 
 
-# 선택 상자 생성
-options = {
-    "Promoter": sources[sources['type'] == "Promoter"]['name'].drop_duplicates().tolist(),
-    "CDS": sources[sources['type'] == "CDS"]['name'].drop_duplicates().tolist(),
-    "Terminator": sources[sources['type'] == "Terminator"]['name'].drop_duplicates().tolist(),
-    "Connector": connector_options
-}
+    # 선택 상자 생성
+    options = {
+        "Promoter": sources[sources['type'] == "Promoter"]['name'].drop_duplicates().tolist(),
+        "CDS": sources[sources['type'] == "CDS"]['name'].drop_duplicates().tolist(),
+        "Terminator": sources[sources['type'] == "Terminator"]['name'].drop_duplicates().tolist(),
+        "Connector": connector_options
+    }
 
-design_df = pd.DataFrame(columns=["Promoter", "CDS", "Terminator", "Connector", "Group", "tu_usage"])
-selected_group = []
-cols = 4 
-for g, group_name in enumerate(user_defined_groups):
-    st.write(f"* Design for {group_name}")
-    # 카테고리 이름 설정
-    cols_placeholder = st.columns(cols)
-    for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
-        with cols_placeholder[col]:
-            st.write(category)
-    rows = user_defined_groups_nop[g]
-    selected_row = []
-    for row in range(rows):
+    design_df = pd.DataFrame(columns=["Promoter", "CDS", "Terminator", "Connector", "Group", "tu_usage"])
+    selected_group = []
+    cols = 4 
+    for g, group_name in enumerate(user_defined_groups):
+        st.write(f"* Design for {group_name}")
+        # 카테고리 이름 설정
         cols_placeholder = st.columns(cols)
-
-        selected_items = {}
         for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
             with cols_placeholder[col]:
-                # Get default values from loaded data if available
-                default_values = []
-                if (st.session_state.loaded_design_data and 
-                    g < len(st.session_state.loaded_design_data) and 
-                    row < len(st.session_state.loaded_design_data[g]['designs'])):
-                    loaded_design = st.session_state.loaded_design_data[g]['designs'][row]
-                    default_values = loaded_design.get(category, [])
-                    # Filter to only include values that exist in options
-                    default_values = [v for v in default_values if v in options[category]]
-                
-                if category == "Connector":
-                    items = options[category]
-                    # For connectors, use single selection with loaded default or original logic
-                    if default_values:
-                        default_index = connector_options.index(default_values[0]) if default_values[0] in connector_options else 0
-                    else:
-                        default_index = (
-                            connector_options.index(connector_ex[0]) if row == 0   # 첫 번째 행
-                            else connector_options.index(connector_ex[row]) if row == rows - 1 # 마지막 행
-                            else connector_options.index(connector_endo[row-1])  # 그 외
-                        )
+                st.write(category)
+        rows = user_defined_groups_nop[g]
+        selected_row = []
+        for row in range(rows):
+            cols_placeholder = st.columns(cols)
+
+            selected_items = {}
+            for col, category in enumerate(["Promoter", "CDS", "Terminator", "Connector"]):
+                with cols_placeholder[col]:
+                    # Get default values from loaded data if available
+                    default_values = []
+                    if (st.session_state.loaded_design_data and 
+                        g < len(st.session_state.loaded_design_data) and 
+                        row < len(st.session_state.loaded_design_data[g]['designs'])):
+                        loaded_design = st.session_state.loaded_design_data[g]['designs'][row]
+                        default_values = loaded_design.get(category, [])
+                        # Filter to only include values that exist in options
+                        default_values = [v for v in default_values if v in options[category]]
                     
-                    selected_items[category] = [st.selectbox(
-                        category,
-                        items,
-                        key=f"select_{row}_{col}_{g}_{st.session_state.widget_key_suffix}",
-                        index=default_index,
-                        label_visibility="collapsed",
-                        disabled=True
-                    )]
+                    if category == "Connector":
+                        items = options[category]
+                        # For connectors, use single selection with loaded default or original logic
+                        if default_values:
+                            default_index = connector_options.index(default_values[0]) if default_values[0] in connector_options else 0
+                        else:
+                            default_index = (
+                                connector_options.index(connector_ex[0]) if row == 0   # 첫 번째 행
+                                else connector_options.index(connector_ex[row]) if row == rows - 1 # 마지막 행
+                                else connector_options.index(connector_endo[row-1])  # 그 외
+                            )
+                        
+                        selected_items[category] = [st.selectbox(
+                            category,
+                            items,
+                            key=f"select_{row}_{col}_{g}_{st.session_state.widget_key_suffix}",
+                            index=default_index,
+                            label_visibility="collapsed",
+                            disabled=True
+                        )]
 
-                else:
-                    items = options[category]
-                    selected_items[category] = st.multiselect(
-                        category,
-                        items,
-                        default=default_values,  # Use loaded default values
-                        key=f"select_{row}_{col}_{g}_{st.session_state.widget_key_suffix}",
-                        label_visibility="collapsed",
-                        # max_selections= 1 if category == "CDS" else None
-                    )
-                    if not selected_items[category]:
-                        selected_items[category] = [""]
+                    else:
+                        items = options[category]
+                        selected_items[category] = st.multiselect(
+                            category,
+                            items,
+                            default=default_values,  # Use loaded default values
+                            key=f"select_{row}_{col}_{g}_{st.session_state.widget_key_suffix}",
+                            label_visibility="collapsed",
+                            # max_selections= 1 if category == "CDS" else None
+                        )
+                        if not selected_items[category]:
+                            selected_items[category] = [""]
 
-        selected_row.append(selected_items)
+            selected_row.append(selected_items)
 
-        selected_items_comb = product(
-            selected_items["Promoter"],
-            selected_items["CDS"],
-            selected_items["Terminator"],
-            selected_items["Connector"]
-        )
+            selected_items_comb = product(
+                selected_items["Promoter"],
+                selected_items["CDS"],
+                selected_items["Terminator"],
+                selected_items["Connector"]
+            )
 
-        for combi in selected_items_comb:
-            design_df = pd.concat([design_df, pd.DataFrame([{
-                "Promoter": combi[0],
-                "CDS": combi[1],
-                "Terminator": combi[2],
-                "Connector": combi[3],
-                "Group": g,
-                "tu_usage": 0
-            }])], ignore_index=True)
-    selected_group.append(selected_row)
+            for combi in selected_items_comb:
+                design_df = pd.concat([design_df, pd.DataFrame([{
+                    "Promoter": combi[0],
+                    "CDS": combi[1],
+                    "Terminator": combi[2],
+                    "Connector": combi[3],
+                    "Group": g,
+                    "tu_usage": 0
+                }])], ignore_index=True)
+        selected_group.append(selected_row)
 
-design2_list = []
-for group_no, group_df in design_df.groupby('Group'):
-    TU_list = []
-    for connector_no, connector_group in group_df.groupby('Connector'):
-        tu_by_con = []
-        for _, row in connector_group.iterrows():
-            tu_by_con.append({"P":row['Promoter'], "C":row["CDS"], "T":row["Terminator"], "N":row["Connector"]})
-        TU_list.append(tu_by_con)
-    for item in product(*TU_list):
-        elements = [elem for sublist in item for elem in sublist.values()]
-        if len(set(elements)) == 4*user_defined_groups_nop[group_no]:
-            design2_list.append([group_no, item])
-            for k in range(user_defined_groups_nop[group_no]):  
-                design_df.loc[
-                    (design_df['Promoter'] == item[k]['P']) &
-                    (design_df['CDS'] == item[k]['C']) &
-                    (design_df['Terminator'] == item[k]['T']) &
-                    (design_df['Connector'] == item[k]['N']) &
-                    (design_df['Group'] == group_no),
-                    'tu_usage'
-                ] += 1
+
+    design2_list = []
+    for group_no, group_df in design_df.groupby('Group'):
+        TU_list = []
+        for connector_no, connector_group in group_df.groupby('Connector'):
+            tu_by_con = []
+            for _, row in connector_group.iterrows():
+                tu_by_con.append({"P":row['Promoter'], "C":row["CDS"], "T":row["Terminator"], "N":row["Connector"]})
+            TU_list.append(tu_by_con)
+        for item in product(*TU_list):
+            elements = [elem for sublist in item for elem in sublist.values()]
+            if len(set(elements)) == 4*user_defined_groups_nop[group_no]:
+                design2_list.append([group_no, item])
+                for k in range(user_defined_groups_nop[group_no]):  
+                    design_df.loc[
+                        (design_df['Promoter'] == item[k]['P']) &
+                        (design_df['CDS'] == item[k]['C']) &
+                        (design_df['Terminator'] == item[k]['T']) &
+                        (design_df['Connector'] == item[k]['N']) &
+                        (design_df['Group'] == group_no),
+                        'tu_usage'
+                    ] += 1
 
 # st.write(design_df)
 # st.write(design2_list)
