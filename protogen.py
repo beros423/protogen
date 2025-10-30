@@ -3,6 +3,7 @@ import pandas as pd
 from itertools import product
 import math
 import re
+import json
 
 # Streamlit 페이지 설정
 st.set_page_config(layout="wide")
@@ -12,28 +13,21 @@ def create_column_headers(columns, texts):
     """Create column headers with given texts."""
     cols = st.columns(columns)
     for i, text in enumerate(texts):
-        with cols[i]: validate_source_types(sources)
-    """Validate that all required source types are present."""
-    for type_item in ['Promoter', 'CDS', 'Terminator', 'Connector']:
-        if sources[sources['type'] == type_item].empty:
-            st.error(f"No rows with type '{type_item}' found in the sources. Please check your input file.")
-            st.stop()
+        with cols[i]:
+            st.write(text)
 
 def load_tu_design_from_csv(uploaded_file):
-    """Load TU design from CSV file.
-    New improved format - each row represents one TU:
-    Group,Promoter,CDS,Terminator
-    Group_1,(P)TDH,(C)mTurquiose2,(T)ENO1
-    Group_1,(P)RPL18B,(C)Venus,(T)ISSA1
-    Group_1,(P)RAD27,(C)mRuby2,(T)ADH1
-    """
     try:
         df = pd.read_csv(uploaded_file)
         design_data = []
         
-        # Group by 'Group' column
-        for group_name, group_df in df.groupby('Group'):
-            # Use row order as TU order (no need for TU_Order column)
+        # Preserve original group order by using unique() instead of groupby
+        # unique() maintains the order of first appearance
+        unique_groups = df['Group'].unique()
+        
+        for group_name in unique_groups:
+            # Filter rows for this group while preserving row order
+            group_df = df[df['Group'] == group_name]
             
             group_design = {
                 'group_name': group_name,
@@ -67,91 +61,6 @@ def load_tu_design_from_csv(uploaded_file):
     except Exception as e:
         st.error(f"Error loading TU design from CSV: {str(e)}")
         return None
-        
-    except Exception as e:
-        st.error(f"Error loading TU design from CSV: {str(e)}")
-        return None
-
-def load_tu_design_from_json(uploaded_file):
-    """Load TU design from JSON file.
-    Expected JSON format:
-    [
-        {
-            "group_name": "Group_1",
-            "number_of_tu": 3,
-            "designs": [
-                {
-                    "Promoter": ["P1", "P2"],
-                    "CDS": ["C1"],
-                    "Terminator": ["T1", "T2"],
-                    "Connector": ["N1"]
-                },
-                ...
-            ]
-        },
-        ...
-    ]
-    """
-    try:
-        import json
-        data = json.load(uploaded_file)
-        return data
-    except Exception as e:
-        st.error(f"Error loading TU design from JSON: {str(e)}")
-        return None
-
-def create_design_template_files():
-    """Create template files for TU design import."""
-    # CSV template - minimal required fields only
-    csv_template = """Group,Promoter,CDS,Terminator
-Group_1,(P)TDH,(C)mTurquiose2,(T)ENO1
-Group_1,(P)RPL18B,(C)Venus,(T)ISSA1
-Group_1,(P)RAD27,(C)mRuby2,(T)ADH1
-Group_2,(P)CCW12,(C)Cas9,(T)PGK1
-Group_2,(P)ALD6,(C)I-Scei (ORF),(T)ENO2"""
-    
-    # JSON template - updated to match new format (Connector is automatically set)
-    json_template = [
-        {
-            "group_name": "Group_1",
-            "number_of_tu": 3,
-            "designs": [
-                {
-                    "Promoter": ["(P)TDH"],
-                    "CDS": ["(C)mTurquiose2"],
-                    "Terminator": ["(T)ENO1"]
-                },
-                {
-                    "Promoter": ["(P)RPL18B"],
-                    "CDS": ["(C)Venus"],
-                    "Terminator": ["(T)ISSA1"]
-                },
-                {
-                    "Promoter": ["(P)RAD27"],
-                    "CDS": ["(C)mRuby2"],
-                    "Terminator": ["(T)ADH1"]
-                }
-            ]
-        },
-        {
-            "group_name": "Group_2",
-            "number_of_tu": 2,
-            "designs": [
-                {
-                    "Promoter": ["(P)CCW12"],
-                    "CDS": ["(C)Cas9"],
-                    "Terminator": ["(T)PGK1"]
-                },
-                {
-                    "Promoter": ["(P)ALD6"],
-                    "CDS": ["(C)I-Scei (ORF)"],
-                    "Terminator": ["(T)ENO2"]
-                }
-            ]
-        }
-    ]
-    
-    return csv_template, json_template
 
 def create_input_row(columns, inputs_config):
     """Create a row of input fields based on configuration."""
@@ -331,7 +240,7 @@ def generate_protocol(designs, destination_name, sources, plate_type=96, naming 
             group_counters[group_name] += 1  # 기존 그룹이면 인덱스 증가
 
         protocol_row = {
-            "Component": f"{naming}_{group_name}_{group_counters[group_name]}",
+            "Component": f"{naming + "_" if naming is not None else ""}{group_name}_{group_counters[group_name]}",
             "Asp.Rack": "",
             "Asp.Posi": "",
             "Dsp.Rack": dest_name,
@@ -392,8 +301,7 @@ def load_tu_design_from_json(uploaded_file):
                 {
                     "Promoter": ["P1", "P2"],
                     "CDS": ["C1"],
-                    "Terminator": ["T1", "T2"],
-                    "Connector": ["N1"]
+                    "Terminator": ["T1", "T2"]
                 },
                 ...
             ]
@@ -402,7 +310,6 @@ def load_tu_design_from_json(uploaded_file):
     ]
     """
     try:
-        import json
         data = json.load(uploaded_file)
         return data
     except Exception as e:
@@ -411,40 +318,63 @@ def load_tu_design_from_json(uploaded_file):
 
 def create_design_template_files():
     """Create template files for TU design import."""
-    # CSV template
-    csv_template = """Group,Promoter,CDS,Terminator,Connector,Number_of_TU
-Group_1,(P)promoter1;(P)promoter2,(C)gene1,(T)terminator1;(T)terminator2,(N)connector1,3
-Group_2,(P)promoter3,(C)gene2;(C)gene3,(T)terminator3,(N)connector2,2"""
+    # CSV template - minimal required fields only
+    csv_template = """Group,Promoter,CDS,Terminator
+Group_1,(P)TDH,(C)mTurquiose2,(T)ENO1
+Group_1,(P)RPL18B,(C)Venus,(T)ISSA1
+Group_1,(P)RAD27,(C)mRuby2,(T)ADH1
+Group_2,(P)CCW12,(C)Cas9,(T)PGK1
+Group_2,(P)ALD6,(C)I-Scei,(T)ENO2"""
     
-    # JSON template
+    # JSON template - updated to match new format (Connector is automatically set)
     json_template = [
         {
             "group_name": "Group_1",
             "number_of_tu": 3,
             "designs": [
                 {
-                    "Promoter": ["(P)promoter1", "(P)promoter2"],
-                    "CDS": ["(C)gene1"],
-                    "Terminator": ["(T)terminator1", "(T)terminator2"],
-                    "Connector": ["(N)connector1"]
+                    "Promoter": ["(P)TDH"],
+                    "CDS": ["(C)mTurquiose2"],
+                    "Terminator": ["(T)ENO1"]
                 },
                 {
-                    "Promoter": ["(P)promoter1", "(P)promoter2"],
-                    "CDS": ["(C)gene1"],
-                    "Terminator": ["(T)terminator1", "(T)terminator2"],
-                    "Connector": ["(N)connector_internal"]
+                    "Promoter": ["(P)RPL18B"],
+                    "CDS": ["(C)Venus"],
+                    "Terminator": ["(T)ISSA1"]
                 },
                 {
-                    "Promoter": ["(P)promoter1", "(P)promoter2"],
-                    "CDS": ["(C)gene1"],
-                    "Terminator": ["(T)terminator1", "(T)terminator2"],
-                    "Connector": ["(N)connector2"]
+                    "Promoter": ["(P)RAD27"],
+                    "CDS": ["(C)mRuby2"],
+                    "Terminator": ["(T)ADH1"]
+                }
+            ]
+        },
+        {
+            "group_name": "Group_2",
+            "number_of_tu": 2,
+            "designs": [
+                {
+                    "Promoter": ["(P)CCW12"],
+                    "CDS": ["(C)Cas9"],
+                    "Terminator": ["(T)PGK1"]
+                },
+                {
+                    "Promoter": ["(P)ALD6"],
+                    "CDS": ["(C)I-Scei (ORF)"],
+                    "Terminator": ["(T)ENO2"]
                 }
             ]
         }
     ]
     
     return csv_template, json_template
+
+def validate_source_types(sources):
+    """Validate that all required source types are present."""
+    for type_item in ['Promoter', 'CDS', 'Terminator', 'Connector']:
+        if sources[sources['type'] == type_item].empty:
+            st.error(f"No rows with type '{type_item}' found in the sources. Please check your input file.")
+            st.stop()
 
 def create_ot2_labware_settings(sheet_names, destination_names, key_prefix):
     """Create OT2 labware position and type settings."""
