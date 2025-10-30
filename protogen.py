@@ -481,11 +481,11 @@ def load_excel_sources(uploaded_file, plate_names, default_vol):
                     sr, sc = (row_index, col_index)
 
         df_sheet = pd.read_excel(uploaded_file, sheet_name=sheet_name, skiprows=sr, index_col=sc)
-
         for row_index, row in df_sheet.iterrows():
             for col_index, item in row.items():
                 if pd.notna(item):
                     data = {
+                        "type": "test",
                         "name": item,
                         "plate": plate_names[i].replace(" ", "_"),
                         "well": "".join([row_index, str(col_index)]),
@@ -558,7 +558,7 @@ if st.checkbox('Legacy_Input', value = False):
             default_vol = st.number_input("Default volume", value=10000, min_value=0, step=10, label_visibility="collapsed")
 
         sources, sheet_names = load_excel_sources(uploaded_file, plate_names, default_vol)
-        
+
         # 플레이트별로 데이터프레임 표시
         with st.expander("Sourceplate"):
             for plate_name, group in sources.groupby('plate'):
@@ -580,6 +580,7 @@ else:
         st.dataframe(sources)
         validate_source_types(sources)
         sheet_names = sources['plate'].unique().tolist()  # For compatibility with OT2 functions
+
 ####################################################################################
 sources_org = sources.copy()
 
@@ -736,10 +737,15 @@ st.write("### TU design")
 designs = []
 
 ## connector 순서 및 그룹 설정
-connector_ex = sources[sources['name'].str.startswith('(N)s', na=False) | sources['name'].str.endswith('e', na=False)]['name'].drop_duplicates().sort_values().tolist()
+connector_sources = sources[sources['type'] == 'Connector']['name'].drop_duplicates().sort_values().tolist()
+connector_ex = [c for c in connector_sources if c.startswith('(N)s') or c.endswith('e')]
 connector_ex = sorted(connector_ex, key=lambda x: [0 if c.isalpha() else 1 for c in x])
+#  st.write(connector_ex)
+
 connector_endo = sources[(~sources['name'].isin(connector_ex)) & sources['name'].str.startswith('(N)', na=False)]['name'].drop_duplicates().sort_values().tolist()
 connector_options = connector_ex + connector_endo
+# st.write(connector_options)
+
 
 # 선택 상자 생성
 options = {
