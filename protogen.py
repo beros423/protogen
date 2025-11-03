@@ -626,16 +626,18 @@ if st.session_state.current_step == "Input Sources":
     
     # Navigation button
     if st.session_state.sources is not None:
-        if st.button("Next: Design →", type="primary"):
-            st.session_state.current_step = "Design"
-            st.rerun()
+        col1, col2, col3 = st.columns([2, 6, 2])
+        with col3:
+            if st.button("Next: Design →", type="primary", use_container_width=True):
+                st.session_state.current_step = "Design"
+                st.rerun()
 
 # ============================================================================
 # STEP 2: DESIGN
 # ============================================================================
 elif st.session_state.current_step == "Design":
     if st.session_state.sources is None:
-        st.warning("⚠️ Please complete Step 1: Input Sources first")
+        st.warning("Please complete Step 1: Input Sources first")
         if st.button("← Go to Input Sources"):
             st.session_state.current_step = "Input Sources"
             st.rerun()
@@ -927,7 +929,8 @@ elif st.session_state.current_step == "Design":
                             ] += 1
 
         # Group by the relevant columns and sum the 'tu_usage' column
-        design_df = design_df.groupby(["Promoter", "CDS", "Terminator", "Connector"]).agg({
+        # Use sort=False to preserve the original order of first appearance
+        design_df = design_df.groupby(["Promoter", "CDS", "Terminator", "Connector"], sort=False).agg({
             "Group": "first",
             "tu_usage": "sum"
         }).reset_index()
@@ -939,10 +942,16 @@ elif st.session_state.current_step == "Design":
         st.session_state.design2_list = design2_list
         st.session_state.vols = vols
         
-        # Navigation button
-        if st.button("Next: Set Commons →", type="primary"):
-            st.session_state.current_step = "Set Commons"
-            st.rerun()
+        # Navigation buttons
+        col1, col2, col3 = st.columns([2, 6, 2])
+        with col1:
+            if st.button("← Back: Input Sources", use_container_width=True):
+                st.session_state.current_step = "Input Sources"
+                st.rerun()
+        with col3:
+            if st.button("Next: Set Commons →", type="primary", use_container_width=True):
+                st.session_state.current_step = "Set Commons"
+                st.rerun()
 
 # ============================================================================
 # STEP 3: SET COMMONS
@@ -1001,21 +1010,33 @@ elif st.session_state.current_step == "Set Commons":
             sources
         )
 
+        # Volume validation for Lv2
+        lv1_maxvol = 50.0  # Default value from Step 2
+        if design2_list:
+            user_defined_groups_nop = [len(item[1]) for item in design2_list]
+            if user_defined_groups_nop:
+                lv2_total_vol = total_vol * max(user_defined_groups_nop) + sum(item['volume'] for item in lv2_commons)
+                if lv2_total_vol > lv1_maxvol:
+                    st.warning(f"Warning: Total Lv2 volume ({lv2_total_vol}ul) exceeds maximum volume ({lv1_maxvol}ul)!")
+
         # Store in session state
         st.session_state.commons = commons
         st.session_state.lv2_commons = lv2_commons
         st.session_state.total_vol = total_vol
         
         # Navigation buttons
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns([2, 6, 2])
         with col1:
-            if st.button("← Back: Design"):
+            if st.button("← Back: Design", use_container_width=True):
                 st.session_state.current_step = "Design"
                 st.rerun()
-        with col2:
-            if st.button("Next: Results →", type="primary"):
+        with col3:
+            if st.button("Next: Results →", type="primary", use_container_width=True):
                 st.session_state.current_step = "Results"
                 st.rerun()
+
+        # st.write(design_df)
+        # st.write(design2_list)
 
 # ============================================================================
 # STEP 4: RESULTS
@@ -1023,7 +1044,7 @@ elif st.session_state.current_step == "Set Commons":
 elif st.session_state.current_step == "Results":
     if (st.session_state.sources is None or st.session_state.design_df is None or 
         st.session_state.commons is None or st.session_state.lv2_commons is None):
-        st.warning("⚠️ Please complete all previous steps first")
+        st.warning("Please complete all previous steps first")
         if st.button("← Go to Input Sources"):
             st.session_state.current_step = "Input Sources"
             st.rerun()
@@ -1038,15 +1059,9 @@ elif st.session_state.current_step == "Results":
         
         st.header("Step 4: Generate Results")
         
-        # Volume validation for Lv2
-        user_defined_groups_nop = [len(item[1]) for item in design2_list]
+        # Default values
         lv1_maxvol = 50.0  # Default value
         lv2_deadvol = 2.0  # Default value
-        
-        if user_defined_groups_nop:
-            for common in lv2_commons:
-                if total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons) > lv1_maxvol:
-                    st.warning(f"Warning: Total volume({total_vol*max(user_defined_groups_nop)+sum(item['volume'] for item in lv2_commons)}ul) is too high(>{lv1_maxvol})!")
 
         ## add common parts to sources
         # Calculate the required volume for each TU
@@ -1116,9 +1131,9 @@ elif st.session_state.current_step == "Results":
         lv1_protocol, lv1_outputs = generate_protocol(designs, lv1_destination_names, lv1_sources, plate_type=lv1_plate_type)
         
         if lv1_protocol is not None:
-            for common in commons:
-                if not common['in_source']:
-                    st.warning(f"please ensure that minimum {round(common['volume']*ratepoint,2)}ul of {common['name']} is available in {common['plate']}, {common['well']} (+10ul or more is recommended)")
+            # for common in commons:
+            #     if not common['in_source']:
+            #         st.warning(f"please ensure that minimum {round(common['volume']*ratepoint,2)}ul of {common['name']} is available in {common['plate']}, {common['well']} (+10ul or more is recommended)")
 
             st.write("Generated Lv1 mapping:")
             st.write(lv1_protocol.reset_index(drop=True))
@@ -1139,9 +1154,9 @@ elif st.session_state.current_step == "Results":
             lv2_plate_type = int(st.selectbox(label='Destination plate type', options=["6", "12", "24", "48", "96", "384"], index=4, key="lv2_plate_type"))
             lv2_plate_len = math.ceil(len(designs2)/lv2_plate_type)
 
-            for common2 in lv2_commons:
-                if not common2['in_source']:
-                    st.warning(f"please ensure that minimum {round(common2['volume']*len(designs2),2)}ul of {common2['name']} is available in {common2['plate']}, {common2['well']} (+10ul or more is recommended)")
+            # for common2 in lv2_commons:
+            #     if not common2['in_source']:
+            #         st.warning(f"please ensure that minimum {round(common2['volume']*len(designs2),2)}ul of {common2['name']} is available in {common2['plate']}, {common2['well']} (+10ul or more is recommended)")
 
             lv2_destination_names = []
             for plate_num in range(lv2_plate_len):
@@ -1215,6 +1230,8 @@ elif st.session_state.current_step == "Results":
                     st.code(converted_protocol_lv2, language='python')
         
         # Navigation button
-        if st.button("← Back: Set Commons"):
-            st.session_state.current_step = "Set Commons"
-            st.rerun()
+        col1, col2, col3 = st.columns([2, 6, 2])
+        with col1:
+            if st.button("← Back: Set Commons", use_container_width=True):
+                st.session_state.current_step = "Set Commons"
+                st.rerun()
