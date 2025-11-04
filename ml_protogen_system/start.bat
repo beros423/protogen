@@ -1,9 +1,0 @@
-@echo off
-echo Starting ML Protogen System...
-echo.
-echo Installing required packages...
-pip install -r requirements.txt
-echo.
-echo Launching application...
-streamlit run app.py
-pause

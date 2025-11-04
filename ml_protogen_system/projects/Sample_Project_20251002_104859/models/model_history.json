@@ -1,9 +1,0 @@
-[
-  {
-    "cycle": 6,
-    "best_score": 0.7526680377264173,
-    "best_model": "Unknown",
-    "timestamp": "2025-10-10T17:10:25.498541",
-    "model_path": "projects\\Sample_Project_20251002_104859\\models\\model_cycle_6.joblib"
-  }
-]

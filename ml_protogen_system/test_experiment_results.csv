@@ -1,7 +1,0 @@
-Well,Sample_ID,Promoter,CDS,Temperature,pH,Inducer_Conc,Expression_Level
-A01,Sample_001,P1,Gene_A,32.0,7.4,0.2,159.4
-A02,Sample_002,P1,Gene_B,32.0,7.4,0.5,153.9
-A03,Sample_003,P2,Gene_A,28.0,6.8,0.5,212.1
-A04,Sample_004,P2,Gene_B,28.0,7.0,0.8,178.8
-A05,Sample_005,P3,Gene_A,28.0,6.8,0.5,160.8
-B01,Sample_006,P3,Gene_B,28.0,7.2,0.2,156.3
