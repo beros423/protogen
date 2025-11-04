@@ -120,10 +120,10 @@ sourceplate_name = "source"
 if uploaded_file is not None:
     if isinstance(uploaded_file, str):
         # File path string
-        df = pd.read_csv(uploaded_file, encoding = "euc-kr")
+        df = pd.read_csv(uploaded_file, encoding = "utf-8")
     else:
         # Uploaded file object
-        df = pd.read_csv(uploaded_file, encoding = "euc-kr")
+        df = pd.read_csv(uploaded_file, encoding = "utf-8")
     # st.write(df)
     # default_vol = st.number_input("default volume", value = 100, min_value = 0, step = 10)
     
