@@ -209,7 +209,15 @@ def run(protocol: protocol_api.ProtocolContext):
     """
     return script
 
-def generate_protocol(designs, destination_name, sources, plate_type=96, naming = "TU"):
+def generate_protocol(designs, destination_name, sources, plate_type=96, naming="TU", custom_wells=None, starting_well="A1"):
+    """
+    Generate protocol with optional custom well positions.
+    
+    Args:
+        custom_wells: Optional list of well positions (e.g., ['A1', 'A3', 'B2', ...]) 
+                     If provided, uses these exact positions instead of auto-calculation.
+        starting_well: Starting well position (e.g., 'A1', 'B3'). Only used if custom_wells is None.
+    """
     protocol_rows = pd.DataFrame(columns=["Component", "Asp.Rack", "Asp.Posi", "Dsp.Rack", "Dsp.Posi", "Volume", "Note"])
     output_rows = pd.DataFrame(columns=["name", "plate", "well", "volume", "note"])
     dest_list = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"]
@@ -217,20 +225,43 @@ def generate_protocol(designs, destination_name, sources, plate_type=96, naming 
     dest_row_num = dest_row_list.get(str(plate_type))
     volume_error = False
     group_counters = {}  # 그룹별 인덱스 초기화
+    
+    # Parse starting well if custom_wells not provided
+    starting_row_idx = 0
+    starting_col = 1
+    if custom_wells is None and starting_well:
+        match = re.match(r'^([A-Pa-p])([0-9]+)$', starting_well)
+        if match:
+            starting_row_idx = dest_list.index(match.group(1).upper())
+            starting_col = int(match.group(2))
+    
     for index, design in enumerate(designs):
         if volume_error:
             protocol_rows, output_rows = None, None
             break
         plate_num = int(index/plate_type)
-        # st.write(index/plate_type)
         dest_name = destination_name[plate_num]
         plate_index = index - plate_num*plate_type + 1
+        
         # 목적지 웰 설정
-        st.write()
-        # dest_row = int((plate_index-0.5)//dest_row_num)
-        dest_row = math.ceil(plate_index/dest_row_num) - 1
-
-        destination = f"{dest_list[dest_row]}{plate_index - dest_row_num * (dest_row)}"
+        if custom_wells is not None:
+            # Use custom well mapping
+            if index < len(custom_wells):
+                destination = custom_wells[index]
+            else:
+                st.error(f"Not enough custom wells specified. Need {len(designs)} wells, got {len(custom_wells)}")
+                return None, None
+        else:
+            # Calculate destination based on starting_well
+            adjusted_index = plate_index - 1 + starting_row_idx * dest_row_num + (starting_col - 1)
+            dest_row = math.ceil((adjusted_index + 1)/dest_row_num) - 1
+            dest_col = (adjusted_index % dest_row_num) + 1
+            
+            if dest_row >= len(dest_list) or dest_col > dest_row_num:
+                st.error(f"Well position out of bounds for plate type {plate_type}")
+                return None, None
+            
+            destination = f"{dest_list[dest_row]}{dest_col}"
         
         # 디자인에 그룹 이름을 포함하여 이름 설정
         group_name = design[0]['note']  # 첫 번째 아이템의 note에서 그룹 이름 가져오기
@@ -1128,7 +1159,44 @@ elif st.session_state.current_step == "Results":
         for plate_num in range(lv1_plate_len):
             lv1_destination_names.append(st.text_input(f"Destination Plate {plate_num+1} Name", value=f"Lv1_destination_{plate_num+1}", key = f"lv1_destination_name_{plate_num}"))
         
-        lv1_protocol, lv1_outputs = generate_protocol(designs, lv1_destination_names, lv1_sources, plate_type=lv1_plate_type)
+        # Well position options for Lv1
+        with st.expander("Lv1 Well Position Settings (Optional)", expanded=False):
+            lv1_well_mode = st.radio(
+                "Select well positioning mode:",
+                options=["Auto (Sequential)", "Custom Starting Well", "Custom Well List"],
+                index=0,
+                key="lv1_well_mode"
+            )
+            
+            lv1_starting_well = "A1"
+            lv1_custom_wells = None
+            
+            if lv1_well_mode == "Custom Starting Well":
+                lv1_starting_well = st.text_input(
+                    "Starting well position (e.g., A1, B3, C5):",
+                    value="A1",
+                    key="lv1_starting_well"
+                )
+            elif lv1_well_mode == "Custom Well List":
+                st.write(f"Enter {len(designs)} well positions (comma-separated):")
+                lv1_custom_wells_input = st.text_area(
+                    "Well positions:",
+                    value="A1, A2, A3, B1, B2, B3",
+                    key="lv1_custom_wells_input",
+                    help="Example: A1, A3, B2, C1, C3, D2"
+                )
+                lv1_custom_wells = [w.strip() for w in lv1_custom_wells_input.split(',') if w.strip()]
+                if len(lv1_custom_wells) != len(designs):
+                    st.warning(f"⚠️ Expected {len(designs)} wells, got {len(lv1_custom_wells)}")
+        
+        lv1_protocol, lv1_outputs = generate_protocol(
+            designs, 
+            lv1_destination_names, 
+            lv1_sources, 
+            plate_type=lv1_plate_type,
+            custom_wells=lv1_custom_wells,
+            starting_well=lv1_starting_well
+        )
         
         if lv1_protocol is not None:
             # for common in commons:
@@ -1162,9 +1230,46 @@ elif st.session_state.current_step == "Results":
             for plate_num in range(lv2_plate_len):
                 lv2_destination_names.append(st.text_input(f"Destination Plate {plate_num+1} Name", value=f"Lv2_destination_{plate_num+1}", key = f"lv2_destination_name_{plate_num}"))
             
+            # Well position options for Lv2
+            with st.expander("Lv2 Well Position Settings (Optional)", expanded=False):
+                lv2_well_mode = st.radio(
+                    "Select well positioning mode:",
+                    options=["Auto (Sequential)", "Custom Starting Well", "Custom Well List"],
+                    index=0,
+                    key="lv2_well_mode"
+                )
+                
+                lv2_starting_well = "A1"
+                lv2_custom_wells = None
+                
+                if lv2_well_mode == "Custom Starting Well":
+                    lv2_starting_well = st.text_input(
+                        "Starting well position (e.g., A1, B3, C5):",
+                        value="A1",
+                        key="lv2_starting_well"
+                    )
+                elif lv2_well_mode == "Custom Well List":
+                    st.write(f"Enter {len(designs2)} well positions (comma-separated):")
+                    lv2_custom_wells_input = st.text_area(
+                        "Well positions:",
+                        value="A1, A2, A3, B1, B2, B3",
+                        key="lv2_custom_wells_input",
+                        help="Example: A1, A3, B2, C1, C3, D2"
+                    )
+                    lv2_custom_wells = [w.strip() for w in lv2_custom_wells_input.split(',') if w.strip()]
+                    if len(lv2_custom_wells) != len(designs2):
+                        st.warning(f"⚠️ Expected {len(designs2)} wells, got {len(lv2_custom_wells)}")
 
             lv2_sources = pd.concat([lv1_sources, lv1_outputs])
-            lv2_protocol, lv2_outputs = generate_protocol(designs2, lv2_destination_names, lv2_sources, plate_type=lv2_plate_type, naming=None)
+            lv2_protocol, lv2_outputs = generate_protocol(
+                designs2, 
+                lv2_destination_names, 
+                lv2_sources, 
+                plate_type=lv2_plate_type, 
+                naming=None,
+                custom_wells=lv2_custom_wells,
+                starting_well=lv2_starting_well
+            )
 
             
             st.write("Generated Lv2 mapping:")

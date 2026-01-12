@@ -11,9 +11,29 @@ import base64
 # Import core functions from main module
 from main import find_source_well
 
+# Import well plate selector
+from well_plate_selector import (
+    create_well_plate_figure, 
+    get_well_from_click,
+    get_wells_from_selection,
+    toggle_well_selection,
+    parse_wells_from_string,
+    format_wells_to_string
+)
+
 # Import generate_janus_protocol separately (will be replaced with fixed version)
-def generate_janus_protocol(sources_janus, designs, destination_name, sources, plate_type=96):
-    """Generate Janus protocol without streamlit dependencies"""
+def generate_janus_protocol(sources_janus, designs, destination_name, sources, plate_type=96, custom_wells=None, starting_well="A1"):
+    """Generate Janus protocol without streamlit dependencies
+    
+    Args:
+        sources_janus: Copy of sources for consumption tracking
+        designs: List of design dictionaries
+        destination_name: Destination plate name
+        sources: Original sources DataFrame
+        plate_type: Plate type (96 or 384)
+        custom_wells: Optional list of well positions (e.g., ['A1', 'A3', 'B2', ...])
+        starting_well: Starting well position (e.g., 'A1', 'B3'). Only used if custom_wells is None.
+    """
     protocol_rows = pd.DataFrame(columns=["Component", "Asp.Rack", "Asp.Posi", "Dsp.Rack", "Dsp.Posi", "Volume", "Note"])
     output_rows = pd.DataFrame(columns=["name","plate","well","volume","note"])
     volume_error = False
@@ -25,16 +45,40 @@ def generate_janus_protocol(sources_janus, designs, destination_name, sources, p
         row_len = 24
     else:
         raise ValueError("plate_type must be either 96 or 384")
+    
+    # Parse starting well if custom_wells not provided
+    dest_list = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P"]
+    starting_row_idx = 0
+    starting_col = 1
+    if custom_wells is None and starting_well:
+        import re
+        match = re.match(r'^([A-Pa-p])([0-9]+)$', starting_well)
+        if match:
+            starting_row_idx = dest_list.index(match.group(1).upper())
+            starting_col = int(match.group(2))
 
     for index, design in enumerate(designs):
         if volume_error:
             protocol_rows, output_rows = None, None
             break
         
-        # set target destination well
-        dest_list = ["A","B","C","D","E","F","G","H"]
-        dest_row = int(index / row_len)
-        destination = f"{dest_list[dest_row]}{index + 1 - row_len*(dest_row)}"
+        # Calculate destination well
+        if custom_wells is not None:
+            # Use custom well mapping
+            if index < len(custom_wells):
+                destination = custom_wells[index]
+            else:
+                raise ValueError(f"Not enough custom wells specified. Need {len(designs)} wells, got {len(custom_wells)}")
+        else:
+            # Calculate destination based on starting_well
+            adjusted_index = index + starting_row_idx * row_len + (starting_col - 1)
+            dest_row = int(adjusted_index / row_len)
+            dest_col = (adjusted_index % row_len) + 1
+            
+            if dest_row >= len(dest_list) or dest_col > row_len:
+                raise ValueError(f"Well position out of bounds for plate type {plate_type}")
+            
+            destination = f"{dest_list[dest_row]}{dest_col}"
         protocol_row = {
             "Component": f"{destination_name}_{index+1}",
             "Asp.Rack": "",
@@ -449,7 +493,115 @@ def create_step4_layout():
                             style={'color': 'black'}
                         )
                     ], md=6)
-                ])
+                ]),
+                html.Hr(className="my-4"),
+                # Well Position Settings
+                dbc.Accordion([
+                    dbc.AccordionItem([
+                        dbc.Row([
+                            dbc.Col([
+                                html.Label("Well Positioning Mode", className="fw-bold mb-2"),
+                                dcc.Dropdown(
+                                    id='well-position-mode',
+                                    options=[
+                                        {'label': 'Auto (Sequential from A1)', 'value': 'auto'},
+                                        {'label': 'Custom Starting Well', 'value': 'starting'},
+                                        {'label': 'Custom Well List', 'value': 'custom'}
+                                    ],
+                                    value='auto',
+                                    className="mb-3",
+                                    style={'color': 'black'}
+                                )
+                            ], md=12)
+                        ]),
+                        html.Div(id='well-position-inputs'),
+                        # Input fields that are shown/hidden based on mode
+                        html.Div([
+                            dbc.Input(
+                                id='starting-well-input', 
+                                type='text', 
+                                value='A1',
+                                placeholder='e.g., A1, B3, C5',
+                                className='form-control',
+                                style={'display': 'none'}
+                            ),
+                            # Graphical Well Plate Selector
+                            html.Div([
+                                dbc.Row([
+                                    dbc.Col([
+                                        dbc.ButtonGroup([
+                                            dbc.Button(
+                                                [html.I(className="fas fa-keyboard me-2"), "Text Input"],
+                                                id='text-input-mode-btn',
+                                                color='secondary',
+                                                outline=True,
+                                                size='sm'
+                                            ),
+                                            dbc.Button(
+                                                [html.I(className="fas fa-grip me-2"), "Plate Selector"],
+                                                id='plate-selector-mode-btn',
+                                                color='primary',
+                                                size='sm'
+                                            )
+                                        ], className='mb-3')
+                                    ], md=12)
+                                ]),
+                                # Text input view
+                                html.Div([
+                                    dbc.Textarea(
+                                        id='custom-wells-input', 
+                                        value='A1, A2, A3, B1, B2, B3',
+                                        placeholder='A1, A3, B2, C1, C3, D2, ...',
+                                        className='form-control',
+                                        style={'height': '100px'}
+                                    )
+                                ], id='text-input-view', style={'display': 'none'}),
+                                # Plate selector view
+                                html.Div([
+                                    dbc.Row([
+                                        dbc.Col([
+                                            html.Div([
+                                                html.Small([
+                                                    html.I(className="fas fa-info-circle me-1"),
+                                                    "Click or drag to toggle wells. Selected: ",
+                                                    html.Span(id='selected-wells-count', children='0', className='fw-bold text-primary')
+                                                ], className='text-muted mb-2 d-block'),
+                                                dcc.Graph(
+                                                    id='well-plate-graph',
+                                                    config={'displayModeBar': False},
+                                                    style={'width': '100%', 'display': 'flex', 'justifyContent': 'center'}
+                                                ),
+                                                dbc.Button(
+                                                    [html.I(className="fas fa-eraser me-2"), "Clear All"],
+                                                    id='clear-wells-btn',
+                                                    color='warning',
+                                                    outline=True,
+                                                    size='sm',
+                                                    className='mt-2'
+                                                )
+                                            ])
+                                        ], md=12)
+                                    ])
+                                ], id='plate-selector-view', style={'display': 'none'})
+                            ], id='custom-wells-container', style={'display': 'none'}),
+                            dbc.Button(
+                                [
+                                    html.I(className="fas fa-check me-2"),
+                                    "Accept Wells"
+                                ],
+                                id='accept-wells-btn',
+                                color='success',
+                                size='sm',
+                                className='mt-2',
+                                style={'display': 'none'}
+                            ),
+                            html.Div(id='wells-acceptance-status', className='mt-2'),
+                            # Hidden stores
+                            dcc.Store(id='selected-wells-store', data=[]),
+                            dcc.Store(id='well-selector-mode', data='text')  # 'text' or 'plate'
+                        ])
+                    ], title="Well Position Settings (Optional)", id="well-position-accordion")
+                ], start_collapsed=True)
             ])
         ], className="shadow-sm mb-4", style={"border": "none", "border-radius": "15px"}),
         
@@ -477,6 +629,8 @@ app.layout = html.Div([
     dcc.Store(id='protocol-data'),
     dcc.Store(id='outputs-data'),
     dcc.Store(id='part-selections-data'),
+    dcc.Store(id='custom-wells-data'),  # Store for custom wells
+    dcc.Store(id='wells-needed-count'),  # Store for number of wells needed
     
     # Header
     dbc.Container([
@@ -961,12 +1115,270 @@ def calculate_total_volume(part_volumes, common_volumes):
         f"Total volume per assembly: {total:.2f} μl"
     ], color="info", className="text-center")
 
+# Calculate wells needed callback
+@app.callback(
+    Output('wells-needed-count', 'data'),
+    [Input('num-assemblies', 'value'),
+     Input('num-repeats', 'value'),
+     Input({'type': 'assembly-part', 'assembly': ALL, 'part': ALL}, 'value')],
+    prevent_initial_call=False
+)
+def calculate_wells_needed(num_assemblies, num_repeats, assembly_selections):
+    """Calculate total number of wells needed based on current design."""
+    if not num_assemblies or not num_repeats:
+        return 0
+    
+    try:
+        # Count total combinations
+        total_designs = 0
+        
+        for assembly_idx in range(num_assemblies):
+            # Count combinations for this assembly
+            assembly_combos = 1
+            
+            # Group selections by assembly
+            assembly_parts = []
+            for sel in assembly_selections:
+                if isinstance(sel, list) and len(sel) > 0:
+                    assembly_parts.append(len(sel))
+            
+            # Calculate product of all part selections
+            if assembly_parts:
+                for count in assembly_parts:
+                    assembly_combos *= count
+            
+            total_designs += assembly_combos
+        
+        return total_designs * num_repeats
+    except:
+        return 0
+
+# Well position inputs callback
+@app.callback(
+    [Output('well-position-inputs', 'children'),
+     Output('starting-well-input', 'style'),
+     Output('custom-wells-container', 'style'),
+     Output('accept-wells-btn', 'style')],
+    [Input('well-position-mode', 'value'),
+     Input('wells-needed-count', 'data')],
+    prevent_initial_call=False
+)
+def update_well_position_inputs(mode, wells_needed):
+    """Update well position input fields based on selected mode."""
+    wells_needed = wells_needed or 0
+    
+    if mode == 'auto':
+        return (
+            html.Div([
+                dbc.Alert([
+                    html.I(className="fas fa-info-circle me-2"),
+                    "Wells will be filled sequentially starting from A1."
+                ], color="info", className="mt-3")
+            ]),
+            {'display': 'none'},
+            {'display': 'none'},
+            {'display': 'none'}
+        )
+    elif mode == 'starting':
+        return (
+            html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.Label("Starting Well Position", className="fw-bold mb-2"),
+                        html.Small("Enter the starting well position (e.g., A1, B3, C5). Wells will be filled sequentially from this position. Click 'Accept Wells' when done.", 
+                                  className="text-muted d-block mb-2")
+                    ], md=12)
+                ], className="mt-3")
+            ]),
+            {'display': 'block', 'marginTop': '10px'},
+            {'display': 'none'},
+            {'display': 'block', 'marginTop': '10px'}
+        )
+    elif mode == 'custom':
+        return (
+            html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.Label(f"Custom Well List ({wells_needed} wells needed)", className="fw-bold mb-2"),
+                        html.Small("Select wells using the plate selector or enter them as text. Click 'Accept Wells' when done.", 
+                                  className="text-muted d-block mb-2")
+                    ], md=12)
+                ], className="mt-3")
+            ]),
+            {'display': 'none'},
+            {'display': 'block', 'marginTop': '10px'},
+            {'display': 'block', 'marginTop': '10px'}
+        )
+    
+    return html.Div(), {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
+
+# Toggle between text input and plate selector
+@app.callback(
+    [Output('text-input-view', 'style'),
+     Output('plate-selector-view', 'style'),
+     Output('text-input-mode-btn', 'color'),
+     Output('text-input-mode-btn', 'outline'),
+     Output('plate-selector-mode-btn', 'color'),
+     Output('plate-selector-mode-btn', 'outline'),
+     Output('well-selector-mode', 'data')],
+    [Input('text-input-mode-btn', 'n_clicks'),
+     Input('plate-selector-mode-btn', 'n_clicks')],
+    [State('well-selector-mode', 'data')],
+    prevent_initial_call=False
+)
+def toggle_well_selector_mode(text_clicks, plate_clicks, current_mode):
+    """Toggle between text input and plate selector views."""
+    ctx = callback_context
+    if not ctx.triggered:
+        # Default to text input
+        return {'display': 'block'}, {'display': 'none'}, 'primary', False, 'secondary', True, 'text'
+    
+    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if button_id == 'text-input-mode-btn':
+        # Show text input
+        return {'display': 'block'}, {'display': 'none'}, 'primary', False, 'secondary', True, 'text'
+    else:
+        # Show plate selector
+        return {'display': 'none'}, {'display': 'block'}, 'secondary', True, 'primary', False, 'plate'
+
+# Update well plate graph when wells are selected/deselected
+@app.callback(
+    [Output('well-plate-graph', 'figure'),
+     Output('selected-wells-store', 'data'),
+     Output('selected-wells-count', 'children'),
+     Output('custom-wells-input', 'value')],
+    [Input('well-plate-graph', 'clickData'),
+     Input('well-plate-graph', 'selectedData'),
+     Input('clear-wells-btn', 'n_clicks'),
+     Input('well-position-mode', 'value')],
+    [State('selected-wells-store', 'data'),
+     State('dest-plate-type', 'value')],
+    prevent_initial_call=False
+)
+def update_well_plate_graph(click_data, selected_data, clear_clicks, position_mode, selected_wells, plate_type):
+    """Update well plate visualization based on user interactions."""
+    ctx = callback_context
+    
+    # Initialize
+    if selected_wells is None:
+        selected_wells = []
+    
+    plate_type = plate_type or 96
+    
+    # Handle clear button
+    if ctx.triggered and ctx.triggered[0]['prop_id'] == 'clear-wells-btn.n_clicks':
+        selected_wells = []
+    
+    # Handle box/lasso selection (drag)
+    elif ctx.triggered and ctx.triggered[0]['prop_id'] == 'well-plate-graph.selectedData':
+        dragged_wells = get_wells_from_selection(selected_data)
+        if dragged_wells:
+            # Toggle mode: if any dragged well is already selected, remove all; otherwise add all
+            any_selected = any(well in selected_wells for well in dragged_wells)
+            
+            if any_selected:
+                # Remove all dragged wells from selection
+                selected_wells = [w for w in selected_wells if w not in dragged_wells]
+            else:
+                # Add all dragged wells to selection (avoiding duplicates)
+                for well in dragged_wells:
+                    if well not in selected_wells:
+                        selected_wells.append(well)
+            
+            # Sort wells
+            selected_wells = sorted(selected_wells, key=lambda x: (x[0], int(x[1:])))
+    
+    # Handle single well click
+    elif ctx.triggered and ctx.triggered[0]['prop_id'] == 'well-plate-graph.clickData':
+        clicked_well = get_well_from_click(click_data)
+        if clicked_well:
+            selected_wells = toggle_well_selection(selected_wells, clicked_well)
+    
+    # Reset when mode changes away from custom
+    if position_mode != 'custom':
+        selected_wells = []
+    
+    # Create figure
+    fig = create_well_plate_figure(plate_type=plate_type, selected_wells=selected_wells)
+    
+    # Format wells string
+    wells_string = format_wells_to_string(selected_wells)
+    
+    return fig, selected_wells, str(len(selected_wells)), wells_string
+
+# Accept wells button callback
+@app.callback(
+    [Output('custom-wells-data', 'data'),
+     Output('wells-acceptance-status', 'children'),
+     Output('protocol-data', 'data', allow_duplicate=True),
+     Output('outputs-data', 'data', allow_duplicate=True)],
+    Input('accept-wells-btn', 'n_clicks'),
+    [State('well-position-mode', 'value'),
+     State('starting-well-input', 'value'),
+     State('custom-wells-input', 'value'),
+     State('wells-needed-count', 'data')],
+    prevent_initial_call=True
+)
+def accept_custom_wells(n_clicks, mode, starting_well, custom_wells_str, wells_needed):
+    """Store well position data when Accept button is clicked."""
+    wells_needed = wells_needed or 0
+    
+    # Invalidate existing protocol to force regeneration
+    invalidate_protocol = None
+    invalidate_outputs = None
+    
+    if mode == 'starting':
+        # Validate starting well format
+        import re
+        if starting_well and re.match(r'^[A-Pa-p][0-9]+$', starting_well):
+            # Store starting well in custom-wells-data with special format
+            return {'mode': 'starting', 'value': starting_well.upper()}, \
+                   dbc.Alert([
+                       html.I(className="fas fa-check-circle me-2"),
+                       f"✅ Starting well set to {starting_well.upper()}"
+                   ], color="success", className="mt-2"), \
+                   invalidate_protocol, invalidate_outputs
+        else:
+            return None, dbc.Alert("⚠️ Invalid well format. Use format like A1, B3, C5", color="warning", className="mt-2"), \
+                   None, None
+    
+    elif mode == 'custom':
+        if custom_wells_str:
+            wells_list = [w.strip() for w in custom_wells_str.split(',') if w.strip()]
+            
+            # Validate well count
+            if len(wells_list) < wells_needed:
+                return None, dbc.Alert([
+                    html.I(className="fas fa-exclamation-triangle me-2"),
+                    f"⚠️ Not enough wells! Need {wells_needed} wells, got {len(wells_list)}. Please add more wells."
+                ], color="warning", className="mt-2"), None, None
+            elif len(wells_list) > wells_needed:
+                return {'mode': 'custom', 'value': wells_list}, \
+                       dbc.Alert([
+                           html.I(className="fas fa-info-circle me-2"),
+                           f"ℹ️ Accepted {len(wells_list)} wells (only {wells_needed} needed, extra wells will be ignored)"
+                       ], color="info", className="mt-2"), \
+                       invalidate_protocol, invalidate_outputs
+            else:
+                return {'mode': 'custom', 'value': wells_list}, \
+                       dbc.Alert([
+                           html.I(className="fas fa-check-circle me-2"),
+                           f"✅ Accepted {len(wells_list)} custom well positions"
+                       ], color="success", className="mt-2"), \
+                       invalidate_protocol, invalidate_outputs
+        
+        return None, dbc.Alert("⚠️ Please enter well positions", color="warning", className="mt-2"), None, None
+    
+    return None, dbc.Alert("⚠️ Unknown mode", color="warning", className="mt-2"), None, None
+
 # Generate protocol callback
 @app.callback(
     [Output('protocol-data', 'data'),
      Output('outputs-data', 'data'),
      Output('protocol-results-container', 'children')],
-    Input('nav-results', 'n_clicks'),
+    [Input('nav-results', 'n_clicks'),
+     Input('custom-wells-data', 'data')],
     [State('sources-data', 'data'),
      State('num-assemblies', 'value'),
      State('num-repeats', 'value'),
@@ -977,13 +1389,15 @@ def calculate_total_volume(part_volumes, common_volumes):
      State({'type': 'common-name', 'index': ALL}, 'value'),
      State({'type': 'common-volume', 'index': ALL}, 'value'),
      State('dest-plate-name', 'value'),
-     State('dest-plate-type', 'value')],
+     State('dest-plate-type', 'value'),
+     State('well-position-mode', 'value'),
+     State('starting-well-input', 'value')],
     prevent_initial_call=True
 )
-def generate_protocol(nav_clicks, sources_data, num_assemblies, num_repeats,
+def generate_protocol(nav_clicks, custom_wells_data, sources_data, num_assemblies, num_repeats,
                      part_types, part_volumes, assembly_selections,
                      common_types, common_names, common_volumes,
-                     dest_plate_name, dest_plate_type):
+                     dest_plate_name, dest_plate_type, well_mode, starting_well):
     
     if not sources_data:
         return None, None, dbc.Alert("No source data available", color="warning")
@@ -1036,10 +1450,44 @@ def generate_protocol(nav_clicks, sources_data, num_assemblies, num_repeats,
         if not designs:
             return None, None, dbc.Alert("No valid designs generated", color="warning")
         
-        # Generate Janus protocol
+        # Process well position settings
+        custom_wells = None
+        starting_well_pos = "A1"
+        actual_mode = 'auto'
+        
+        # Check if wells were accepted via button (this takes priority)
+        if custom_wells_data and isinstance(custom_wells_data, dict):
+            if custom_wells_data.get('mode') == 'starting':
+                starting_well_pos = custom_wells_data.get('value', 'A1')
+                actual_mode = 'starting'
+            elif custom_wells_data.get('mode') == 'custom':
+                custom_wells = custom_wells_data.get('value')
+                actual_mode = 'custom'
+                # Validate custom wells
+                if not custom_wells or len(custom_wells) < len(designs):
+                    return None, None, dbc.Alert(
+                        f"Not enough wells specified. Need {len(designs)} wells, got {len(custom_wells) if custom_wells else 0}. Please update and click 'Accept Wells'.",
+                        color="warning"
+                    )
+        elif custom_wells_data and isinstance(custom_wells_data, list):
+            # Legacy format support
+            custom_wells = custom_wells_data
+            actual_mode = 'custom'
+            if len(custom_wells) < len(designs):
+                return None, None, dbc.Alert(
+                    f"Not enough wells specified. Need {len(designs)} wells, got {len(custom_wells)}.",
+                    color="warning"
+                )
+        
+        # Generate Janus protocol with the actual settings
         sources_janus = sources_df.copy()
+        
+        # Debug info
+        debug_info = f"Mode: {actual_mode}, Starting well: {starting_well_pos}, Custom wells: {len(custom_wells) if custom_wells else 0}"
+        
         protocol, lv1_outputs = generate_janus_protocol(
-            sources_janus, designs, dest_plate_name, sources_df, dest_plate_type
+            sources_janus, designs, dest_plate_name, sources_df, dest_plate_type,
+            custom_wells=custom_wells, starting_well=starting_well_pos
         )
         
         # Rename columns with dots to underscores for AG Grid compatibility
@@ -1050,8 +1498,12 @@ def generate_protocol(nav_clicks, sources_data, num_assemblies, num_repeats,
         protocol_json = protocol.to_json(orient='records')
         outputs_json = lv1_outputs.to_json(orient='records')
         
-        # Create results display
+        # Create results display with debug info
         results = dbc.Container([
+            dbc.Alert([
+                html.I(className="fas fa-info-circle me-2"),
+                f"Well settings applied: {debug_info}"
+            ], color="info", className="mb-3"),
             dbc.Row([
                 dbc.Col([
                     html.Div([

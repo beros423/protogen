@@ -4,9 +4,10 @@ Protocol generation functions for assembly designs
 
 import pandas as pd
 import math
+import re
 
 
-def generate_protocol(designs, destination_name, sources, plate_type=96, naming="TU"):
+def generate_protocol(designs, destination_name, sources, plate_type=96, naming="TU", custom_wells=None, starting_well="A1"):
     """Generate protocol for assembly
     
     Args:
@@ -15,6 +16,9 @@ def generate_protocol(designs, destination_name, sources, plate_type=96, naming=
         sources: DataFrame with source information
         plate_type: Plate type (6, 12, 24, 48, 96, 384)
         naming: Naming convention for outputs
+        custom_wells: Optional list of well positions (e.g., ['A1', 'A3', 'B2', ...]) 
+                     If provided, uses these exact positions instead of auto-calculation.
+        starting_well: Starting well position (e.g., 'A1', 'B3'). Only used if custom_wells is None.
         
     Returns:
         Tuple of (protocol_rows DataFrame, output_rows DataFrame)
@@ -27,6 +31,15 @@ def generate_protocol(designs, destination_name, sources, plate_type=96, naming=
     volume_error = False
     group_counters = {}
     
+    # Parse starting well if custom_wells not provided
+    starting_row_idx = 0
+    starting_col = 1
+    if custom_wells is None and starting_well:
+        match = re.match(r'^([A-Pa-p])([0-9]+)$', starting_well)
+        if match:
+            starting_row_idx = dest_list.index(match.group(1).upper())
+            starting_col = int(match.group(2))
+    
     for index, design in enumerate(designs):
         if volume_error:
             protocol_rows, output_rows = None, None
@@ -34,8 +47,24 @@ def generate_protocol(designs, destination_name, sources, plate_type=96, naming=
         plate_num = int(index/plate_type)
         dest_name = destination_name[plate_num]
         plate_index = index - plate_num*plate_type + 1
-        dest_row = math.ceil(plate_index/dest_row_num) - 1
-        destination = f"{dest_list[dest_row]}{plate_index - dest_row_num * (dest_row)}"
+        
+        # Calculate destination well
+        if custom_wells is not None:
+            # Use custom well mapping
+            if index < len(custom_wells):
+                destination = custom_wells[index]
+            else:
+                raise ValueError(f"Not enough custom wells specified. Need {len(designs)} wells, got {len(custom_wells)}")
+        else:
+            # Calculate destination based on starting_well
+            adjusted_index = plate_index - 1 + starting_row_idx * dest_row_num + (starting_col - 1)
+            dest_row = math.ceil((adjusted_index + 1)/dest_row_num) - 1
+            dest_col = (adjusted_index % dest_row_num) + 1
+            
+            if dest_row >= len(dest_list) or dest_col > dest_row_num:
+                raise ValueError(f"Well position out of bounds for plate type {plate_type}")
+            
+            destination = f"{dest_list[dest_row]}{dest_col}"
         
         group_name = design[0]['note']
         if group_name not in group_counters:
