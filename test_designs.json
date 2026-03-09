@@ -1,0 +1,108 @@
+{
+  "designs": [
+    [
+      {
+        "name": "(P)TDH",
+        "volume": 1.0
+      },
+      {
+        "name": "(C)mTurquiose2",
+        "volume": 1.0
+      },
+      {
+        "name": "(T)ENO1",
+        "volume": 1.0
+      },
+      {
+        "name": "(N)s|1",
+        "volume": 1.0
+      },
+      {
+        "name": "GGAmix",
+        "volume": 2.0
+      }
+    ],
+    [
+      {
+        "name": "(P)CCW12",
+        "volume": 1.0
+      },
+      {
+        "name": "(C)mTurquiose2",
+        "volume": 1.0
+      },
+      {
+        "name": "(T)ENO1",
+        "volume": 1.0
+      },
+      {
+        "name": "(N)s|1",
+        "volume": 1.0
+      },
+      {
+        "name": "GGAmix",
+        "volume": 2.0
+      }
+    ],
+    [
+      {
+        "name": "(P)RPL18B",
+        "volume": 1.0
+      },
+      {
+        "name": "(C)Venus",
+        "volume": 1.0
+      },
+      {
+        "name": "(T)ISSA1",
+        "volume": 1.0
+      },
+      {
+        "name": "(N)1|2",
+        "volume": 1.0
+      },
+      {
+        "name": "GGAmix",
+        "volume": 2.0
+      }
+    ],
+    [
+      {
+        "name": "(P)RPL18B",
+        "volume": 1.0
+      },
+      {
+        "name": "(C)mRuby2",
+        "volume": 1.0
+      },
+      {
+        "name": "(T)ISSA1",
+        "volume": 1.0
+      },
+      {
+        "name": "(N)1|2",
+        "volume": 1.0
+      },
+      {
+        "name": "GGAmix",
+        "volume": 2.0
+      }
+    ]
+  ],
+  "metadata": {
+    "total_designs": 4,
+    "part_types": [
+      "Promoter",
+      "CDS",
+      "Terminator",
+      "Connector"
+    ],
+    "volumes": {
+      "Promoter": 1.0,
+      "CDS": 1.0,
+      "Terminator": 1.0,
+      "Connector": 1.0
+    },
+    "repeats": 1
+  }
+}

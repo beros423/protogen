@@ -173,8 +173,17 @@ def generate_bayesian_suggestions(trainer, promoters, n_suggestions, exploration
     
     # 획득 점수 기준으로 정렬하여 상위 N개 선택
     suggestions.sort(key=lambda x: x['Acquisition_Score'], reverse=True)
-    
-    return suggestions[:n_suggestions]
+    selected = suggestions[:n_suggestions]
+
+    # 프로젝트 단위로 제안 저장 (파일 및 세션)
+    try:
+        if 'current_project' in st.session_state and st.session_state.current_project:
+            save_project_data(st.session_state.current_project, 'suggestions', selected)
+            st.session_state.suggestions = selected
+    except Exception:
+        pass
+
+    return selected
 
 
 def init_project_management():
@@ -218,6 +227,8 @@ def save_project_data(project_name, data_type, data):
         file_path = project_dir / "model_results.pkl"
     elif data_type == "trainer":
         file_path = project_dir / "trainer.pkl"
+    elif data_type == "suggestions":
+        file_path = project_dir / "suggestions.pkl"
     elif data_type == "metadata":
         file_path = project_dir / "metadata.json"
     elif data_type == "workflow_status":
@@ -245,6 +256,8 @@ def load_project_data(project_name, data_type):
         file_path = project_dir / "model_results.pkl"
     elif data_type == "trainer":
         file_path = project_dir / "trainer.pkl"
+    elif data_type == "suggestions":
+        file_path = project_dir / "suggestions.pkl"
     elif data_type == "metadata":
         file_path = project_dir / "metadata.json"
     elif data_type == "workflow_status":
@@ -308,6 +321,7 @@ def save_project_session_state(project_name):
         "has_data": 'data' in st.session_state and st.session_state.data is not None,
         "has_model": 'trainer' in st.session_state and st.session_state.trainer is not None,
         "has_results": 'model_results' in st.session_state and st.session_state.model_results is not None,
+        "has_suggestions": 'suggestions' in st.session_state and st.session_state.suggestions is not None,
         "current_menu": st.session_state.get("main_menu", "데이터 업로드"),
         "data_info": {},
         "model_info": {},
@@ -341,6 +355,14 @@ def save_project_session_state(project_name):
             "best_params": results.get("best_params", None),
             "models_count": len(results.get("results", {}))
         }
+
+    # 제안된 실험 정보 저장 (간단한 미리보기)
+    if session_data.get("has_suggestions"):
+        try:
+            suggestions = st.session_state.get('suggestions', [])
+            session_data['suggestions_preview'] = suggestions[:5]
+        except Exception:
+            session_data['suggestions_preview'] = []
     
     save_project_data(project_name, "session_state", session_data)
 
@@ -397,6 +419,7 @@ def show_project_sidebar():
         raw_data = load_project_data(selected_option, "raw_data")
         model_results = load_project_data(selected_option, "model_results")
         trainer = load_project_data(selected_option, "trainer")
+        suggestions = load_project_data(selected_option, "suggestions")
         
         # 세션 상태 복원
         session_data = restore_project_session_state(selected_option)
@@ -419,6 +442,13 @@ def show_project_sidebar():
         else:
             if 'trainer' in st.session_state:
                 del st.session_state.trainer
+        
+        # 이전에 생성된 제안 복원
+        if suggestions is not None:
+            st.session_state.suggestions = suggestions
+        else:
+            if 'suggestions' in st.session_state:
+                del st.session_state.suggestions
         
         # 메뉴 상태 복원
         if session_data and "current_menu" in session_data:
@@ -466,6 +496,10 @@ def show_project_sidebar():
                 best_score = results_info.get("best_score")
                 if best_score:
                     st.sidebar.write(f"📈 점수: {best_score:.4f}")
+
+            if session_data.get("has_suggestions"):
+                previews = session_data.get('suggestions_preview', [])
+                st.sidebar.write(f"💡 저장된 제안: {len(previews)}개 (최근 {len(previews)}개 미리보기)")
             
             # 마지막 메뉴 위치
             last_menu = session_data.get("current_menu", "데이터 업로드")
@@ -583,12 +617,12 @@ def show_new_project_creation():
 
 def main():
     st.set_page_config(
-        page_title="베타카로틴 생산 최적화 ML 시스템",
+        page_title="Protogen ML 실험 최적화 시스템",
         page_icon="",
         layout="wide"
     )
     
-    st.title("베타카로틴 생산 최적화 ML 시스템")
+    st.title("Protogen: ML 실험 최적화 및 모델 학습")
     st.markdown("---")
     
     # 프로젝트 관리 초기화
@@ -601,44 +635,56 @@ def main():
     if st.session_state.current_project:
         show_workflow_progress_sidebar()
     
-    # 메뉴 선택 - 버튼 클릭으로 변경 가능하도록 수정
-    menu_options = ["새 프로젝트 생성", "데이터 업로드", "ML 모델 학습", "예측 및 최적화", "도움말"]
-    
-    # 버튼으로 메뉴 변경 요청이 있는지 확인
+    # 사이드바: 주요 작업을 버튼으로 선택하도록 변경
+    sidebar_pages = [
+        ("데이터 준비", "데이터 준비"),
+        ("초기 모델 학습", "초기 모델 학습"),
+        ("학습 결과 및 추가 데이터 제시", "학습 결과 및 추가 데이터 제시"),
+        ("데이터 입력 및 추가학습", "데이터 입력 및 추가학습"),
+        ("프로젝트 관리", "프로젝트 관리"),
+        ("도움말", "도움말"),
+        ("홈", "홈")
+    ]
+
+    # 메뉴 변경 요청 처리
     if 'menu_change_request' in st.session_state:
-        requested_menu = st.session_state.menu_change_request
-        if requested_menu in menu_options:
-            # selectbox의 index 계산
-            menu_index = menu_options.index(requested_menu)
-        else:
-            menu_index = 0
+        st.session_state.main_menu = st.session_state.menu_change_request
         del st.session_state.menu_change_request
-    else:
-        # 기본값은 첫 번째 옵션
-        menu_index = 0
-    
-    menu = st.sidebar.selectbox(
-        "작업을 선택하세요",
-        menu_options,
-        index=menu_index,
-        key="main_menu"
-    )
+
+    if 'main_menu' not in st.session_state:
+        st.session_state.main_menu = '홈'
+
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("작업 선택")
+    for label, key in sidebar_pages:
+        if st.sidebar.button(label, key=f"btn_{key}"):
+            st.session_state.main_menu = key
+            st.rerun()
+
+    menu = st.session_state.get('main_menu', '홈')
     
     # 프로젝트 생성 페이지 표시 확인
     if st.session_state.get('show_project_creation', False):
         show_new_project_creation()
-    elif menu == "새 프로젝트 생성":
-        show_new_project_creation()
-    elif menu == "데이터 업로드":
+    elif menu == "데이터 준비":
         show_data_upload()
-    elif menu == "ML 모델 학습":
+    elif menu == "초기 모델 학습":
         show_ml_training()
-    elif menu == "예측 및 최적화":
+    elif menu == "학습 결과 및 추가 데이터 제시":
+        # 학습 결과를 먼저 보여주고 추가 데이터/제안도 함께 표시
+        if 'model_results' in st.session_state and 'trainer' in st.session_state:
+            show_training_results(st.session_state.model_results, st.session_state.trainer)
+            show_prediction()
+        else:
+            st.info("먼저 모델을 학습해주세요 (초기 모델 학습).")
+    elif menu == "데이터 입력 및 추가학습":
+        # 추가 데이터 업로드 및 재학습 유도
         show_prediction()
+    elif menu == "프로젝트 관리":
+        show_project_management()
     elif menu == "도움말":
         show_help()
     else:
-        # 기본적으로 홈 화면 표시
         show_home()
     
     # 세션 종료 시 현재 프로젝트 상태 저장
@@ -1144,6 +1190,15 @@ def show_ml_training():
             st.session_state.model_results = results
             st.session_state.best_score = trainer.best_score
             st.session_state.best_model_name = trainer.best_model_name
+            # 전처리된 데이터 저장 (시각화 및 재예측에 사용)
+            try:
+                st.session_state.preprocessed = {
+                    'X': X,
+                    'y': y,
+                    'X_raw': df[feature_columns] if feature_columns else None
+                }
+            except Exception:
+                st.session_state.preprocessed = None
             
             # 프로젝트에 저장
             save_project_data(st.session_state.current_project, "trainer", trainer)
@@ -1214,6 +1269,70 @@ def show_training_results(results, trainer):
         else:
             st.success("우수한 성능입니다!")
     
+    # 추가 시각화: 데이터 트렌드 및 예측 vs 실제
+    try:
+        if 'trainer' in st.session_state and st.session_state.trainer is not None and 'data' in st.session_state:
+            trainer_obj = st.session_state.trainer
+            data_df = st.session_state.data.copy()
+
+            # 트렌드: 타겟 변수의 전체 경향성
+            target_col = getattr(trainer_obj, 'target_name', None) or 'avg'
+            if target_col in data_df.columns:
+                trend_fig = px.line(
+                    data_df.reset_index().rename(columns={'index': 'idx'}),
+                    x='idx', y=target_col,
+                    title='전체 실험 데이터의 타겟 경향성',
+                    markers=True
+                )
+                trend_fig.update_layout(xaxis_title='실험 인덱스', yaxis_title=target_col)
+            else:
+                trend_fig = None
+
+            # 예측 vs 실제
+            preds_fig = None
+            try:
+                if 'preprocessed' in st.session_state and st.session_state.preprocessed:
+                    X_scaled = st.session_state.preprocessed['X']
+                    # trainer.predict will handle inverse transform
+                    preds = trainer_obj.predict(X_scaled)
+                    # 원래 실제값
+                    if trainer_obj.target_name and trainer_obj.target_name in data_df.columns:
+                        actuals = data_df[trainer_obj.target_name].values
+                    else:
+                        actuals = None
+                else:
+                    # 재전처리 시도 (주의: 인코더/스케일러가 trainer에 저장되어 있어야 함)
+                    if trainer_obj.feature_names:
+                        X_tmp, y_tmp = trainer_obj.preprocess_data(data_df, trainer_obj.target_name, trainer_obj.feature_names)
+                        preds = trainer_obj.predict(X_tmp)
+                        actuals = data_df[trainer_obj.target_name].values if trainer_obj.target_name in data_df.columns else None
+                    else:
+                        preds = None
+                        actuals = None
+
+                if preds is not None and actuals is not None and len(preds) == len(actuals):
+                    df_pa = pd.DataFrame({'Actual': actuals, 'Predicted': preds})
+                    preds_fig = px.scatter(df_pa, x='Actual', y='Predicted', trendline='ols',
+                                           title='예측 vs 실제 (전체 데이터)')
+                    preds_fig.add_shape(type='line', x0=df_pa['Actual'].min(), x1=df_pa['Actual'].max(),
+                                        y0=df_pa['Actual'].min(), y1=df_pa['Actual'].max(), line=dict(dash='dash', color='red'))
+                    preds_fig.update_layout(xaxis_title='실제', yaxis_title='예측')
+            except Exception:
+                preds_fig = None
+
+            if trend_fig or preds_fig:
+                st.markdown("---")
+                st.subheader("데이터 시각화")
+                viz_cols = st.columns(2)
+                with viz_cols[0]:
+                    if trend_fig:
+                        st.plotly_chart(trend_fig, use_container_width=True)
+                with viz_cols[1]:
+                    if preds_fig:
+                        st.plotly_chart(preds_fig, use_container_width=True)
+    except Exception:
+        pass
+
     # 상세 결과 테이블
     st.dataframe(results_df, use_container_width=True)
     
@@ -1293,6 +1412,22 @@ def show_prediction():
     trainer = st.session_state.trainer
     
     st.info(f"현재 프로젝트: **{st.session_state.current_project}**")
+    # 이전에 생성된 제안이 있으면 먼저 표시
+    if 'suggestions' in st.session_state and st.session_state.suggestions:
+        st.subheader("저장된 제안된 실험 조건")
+        try:
+            sug_df = pd.DataFrame(st.session_state.suggestions)
+            st.dataframe(sug_df, use_container_width=True)
+            csv = sug_df.to_csv(encoding='utf-8-sig')
+            st.download_button(
+                label="저장된 제안 CSV 다운로드",
+                data=csv,
+                file_name=f"saved_suggestions_{st.session_state.current_project}.csv",
+                mime="text/csv"
+            )
+        except Exception:
+            pass
+        st.markdown("---")
     st.subheader("단일 조건 예측")
     
     # 특성값 입력

@@ -1,0 +1,7 @@
+{
+  "designs_file": "test_designs.json",
+  "sources_file": "SourcePlate_Sample.csv",
+  "destination_name": "dest_01",
+  "plate_type": 96,
+  "protocol_type": "janus"
+}

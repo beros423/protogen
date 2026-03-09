@@ -1,0 +1,4 @@
+# Python 스크립트 필수 패키지
+
+numpy>=1.21.0
+matplotlib>=3.5.0

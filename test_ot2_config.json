@@ -1,0 +1,13 @@
+{
+  "designs_file": "test_designs.json",
+  "sources_file": "SourcePlate_Sample.csv",
+  "protocol_type": "ot2",
+  "metadata": "'protocolName': 'Test Assembly Protocol', 'author': 'ProtoGen', 'robotType': 'OT-2'",
+  "requirements": "'robotType': 'OT-2', 'apiLevel': '2.17'",
+  "plate_positions": [
+    {"plate": "Stocking_plate_1", "position": 1},
+    {"plate": "Stocking_plate_2", "position": 2},
+    {"plate": "destination", "position": 3},
+    {"plate": "tiprack", "position": 4}
+  ]
+}

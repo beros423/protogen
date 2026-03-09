@@ -1,9 +1,10 @@
 {
-  "last_saved": "2025-11-04T13:22:32.122220",
+  "last_saved": "2025-11-04T16:48:07.895609",
   "has_data": true,
   "has_model": true,
   "has_results": true,
-  "current_menu": "새 프로젝트 생성",
+  "has_suggestions": true,
+  "current_menu": "도움말",
   "data_info": {
     "shape": [
       120,
@@ -32,5 +33,47 @@
     "best_score": null,
     "best_params": null,
     "models_count": 0
-  }
+  },
+  "suggestions_preview": [
+    {
+      "CrtYB": "(P) TDH3",
+      "CrtI": "(P) PGK1",
+      "CrtE": "(P) TDH3",
+      "Predicted_Titer": 5.089,
+      "Uncertainty": 3.327,
+      "Acquisition_Score": 8.416
+    },
+    {
+      "CrtYB": "(P) TDH3",
+      "CrtI": "(P) PGK1",
+      "CrtE": "(P) PGK1",
+      "Predicted_Titer": 5.042,
+      "Uncertainty": 3.296,
+      "Acquisition_Score": 8.338
+    },
+    {
+      "CrtYB": "(P) TDH3",
+      "CrtI": "(P) TDH3",
+      "CrtE": "(P) TDH3",
+      "Predicted_Titer": 4.585,
+      "Uncertainty": 2.998,
+      "Acquisition_Score": 7.583
+    },
+    {
+      "CrtYB": "(P) TDH3",
+      "CrtI": "(P) HHF1",
+      "CrtE": "(P) TDH3",
+      "Predicted_Titer": 4.565,
+      "Uncertainty": 2.984,
+      "Acquisition_Score": 7.549
+    },
+    {
+      "CrtYB": "(P) TDH3",
+      "CrtI": "(P) TDH3",
+      "CrtE": "(P) PGK1",
+      "Predicted_Titer": 4.542,
+      "Uncertainty": 2.97,
+      "Acquisition_Score": 7.512
+    }
+  ]
 }

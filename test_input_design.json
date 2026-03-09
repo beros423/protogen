@@ -1,0 +1,30 @@
+{
+  "assemblies": [
+    {
+      "Promoter": ["(P)TDH", "(P)CCW12"],
+      "CDS": ["(C)mTurquiose2"],
+      "Terminator": ["(T)ENO1"],
+      "Connector": ["(N)s|1"]
+    },
+    {
+      "Promoter": ["(P)RPL18B"],
+      "CDS": ["(C)Venus", "(C)mRuby2"],
+      "Terminator": ["(T)ISSA1"],
+      "Connector": ["(N)1|2"]
+    }
+  ],
+  "part_types": ["Promoter", "CDS", "Terminator", "Connector"],
+  "volumes": {
+    "Promoter": 1.0,
+    "CDS": 1.0,
+    "Terminator": 1.0,
+    "Connector": 1.0
+  },
+  "common_parts": [
+    {
+      "name": "GGAmix",
+      "volume": 2.0
+    }
+  ],
+  "repeats": 1
+}

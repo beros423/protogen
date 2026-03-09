@@ -1,0 +1,41 @@
+{
+  "group_name": "Universal_Design",
+  "assemblies": [
+    {
+      "Promoter": [
+        "pTrc",
+        "pLac"
+      ],
+      "CDS": [
+        "gfp"
+      ],
+      "Terminator": [
+        "rrnB_T1"
+      ],
+      "Backbone": [
+        "pUC19"
+      ]
+    },
+    {
+      "Promoter": [
+        "pBAD"
+      ],
+      "CDS": [
+        "rfp",
+        "bfp"
+      ],
+      "Terminator": [
+        "rrnB_T2"
+      ],
+      "Backbone": [
+        "pBR322"
+      ]
+    }
+  ],
+  "part_types": [
+    "Promoter",
+    "CDS",
+    "Terminator",
+    "Backbone"
+  ]
+}
