@@ -1,0 +1,277 @@
+{
+  "version": "0.4",
+  "language": "English",
+  "lastUpdated": "2025-08-15",
+  "unitOperations": [
+    {
+      "id": "UHW010",
+      "name": "Liquid Handling",
+      "equipment": "Multiple dispenser system",
+      "description": "This unit operation involves basic and fundamental liquid sample operations in laboratory processes, such as reagent preparation, sample distribution, dilution, mixing, and washing. It ensures precision and efficiency in handling liquid samples across various experimental setups."
+    },
+    {
+      "id": "UHW015",
+      "name": "Bulk Liquid Dispenser",
+      "equipment": "Bulk Reagent Dispenser / Automated Plate Filler",
+      "description": "Rapid and accurate dispensing of larger volumes of a single liquid reagent such as growth media and buffers into multi-well plates. Optimized for speed and efficiency in plate preparation tasks."
+    },
+    {
+      "id": "UHW020",
+      "name": "96 Channel Liquid Handling",
+      "equipment": "NGS library preparation system",
+      "description": "This unit operation enables high-throughput, simultaneous dispensing or transferring of liquids across a 96-well platform. It is commonly used for NGS library preparation and includes magnetic bead-based purification, enhancing throughput and consistency in sample processing."
+    },
+    {
+      "id": "UHW030",
+      "name": "Nanoliter Liquid Dispensing",
+      "equipment": "Acoustic liquid dispenser",
+      "description": "Specialized for high-precision dispensing of extremely small liquid volumes, typically in the nanoliter range. This unit operation reduces reagent usage, minimizes waste, and allows for scalable, cost-effective workflows, particularly in high-throughput screening applications."
+    },
+    {
+      "id": "UHW040",
+      "name": "Desktop Liquid Handling",
+      "equipment": "Desktop liquid handling system",
+      "description": "A compact liquid handling system designed for small-scale automated experiments or educational use. It provides flexibility and ease of use for routine laboratory tasks, making it ideal for teaching labs or small research groups."
+    },
+    {
+      "id": "UHW050",
+      "name": "Single Cell Sequencing Preparation",
+      "equipment": "Droplet-based high-throughput single-cell platforms",
+      "description": "This unit operation prepares single cells for single-cell analysis, including processes such as encapsulating single cells with reagents for simultaneous isolation and library preparation. It is crucial for single-cell genomics and transcriptomics studies."
+    },
+    {
+      "id": "UHW060",
+      "name": "Colony Picking",
+      "equipment": "Colony picker",
+      "description": "The process of isolating individual bacterial or yeast colonies from an agar plate and transferring them to a liquid culture or multi-well plate for downstream applications. This unit operation is essential for microbial strain selection and screening."
+    },
+    {
+      "id": "UHW070",
+      "name": "Cell Sorting",
+      "equipment": "High-speed flow cytometry",
+      "description": "A process to select and categorize cells based on their biological properties, such as size, shape, fluorescence, or other markers. It is used for single-cell analysis, enrichment, or functional studies, providing high precision and throughput."
+    },
+    {
+      "id": "UHW080",
+      "name": "Cell Lysis",
+      "equipment": "Bead mill or ultrasonic homogenizers",
+      "description": "The process of breaking open cells to release their internal components, such as DNA, RNA, proteins, or metabolites, for downstream processing. This unit operation is critical for sample preparation in molecular biology and biochemistry."
+    },
+    {
+      "id": "UHW090",
+      "name": "Electroporation",
+      "equipment": "Electroporator",
+      "description": "A technique for introducing foreign molecules, such as DNA and RNA, into cells by applying an electrical field. It is widely used in genetic engineering and cell transformation studies."
+    },
+    {
+      "id": "UHW100",
+      "name": "Thermocycling",
+      "equipment": "Thermal Cycler",
+      "description": "The process of repeatedly heating and cooling through defined temperature cycles to facilitate reactions. It is used in workflows such as DNA assembly and DNA/RNA amplification, including PCR."
+    },
+    {
+      "id": "UHW110",
+      "name": "Real-time PCR",
+      "equipment": "qPCR",
+      "description": "Amplifying and simultaneously quantifying a specific DNA or RNA sequence. This unit operation is essential for gene expression analysis and diagnostic applications."
+    },
+    {
+      "id": "UHW120",
+      "name": "Plate Handling",
+      "equipment": "Plate handling robot arm",
+      "description": "Connecting workflows/unit operations among automated equipment through plate transportation. It enhances workflow efficiency and integration in high-throughput laboratory environments."
+    },
+    {
+      "id": "UHW130",
+      "name": "Sealing",
+      "equipment": "Microplate sealer",
+      "description": "Plate sealing for PCR, culturing, storing, and other applications. It ensures sample integrity and prevents contamination during storage and processing."
+    },
+    {
+      "id": "UHW140",
+      "name": "Peeling",
+      "equipment": "Microplate peeler",
+      "description": "Plate cover removal after PCR, culturing, storing, and other applications. It facilitates easy access to samples while maintaining workflow efficiency."
+    },
+    {
+      "id": "UHW150",
+      "name": "Capping Decapping",
+      "equipment": "Tube capper and decapper",
+      "description": "Opening and closing of sample tube caps from storage. This unit operation streamlines sample handling and reduces manual labor in high-throughput settings."
+    },
+    {
+      "id": "UHW160",
+      "name": "Sample Storage",
+      "equipment": "Sample storage system",
+      "description": "Storing DNA or cell samples, with automated sample retrieval and storage system. It ensures sample security and accessibility in large-scale experiments."
+    },
+    {
+      "id": "UHW170",
+      "name": "Plate Storage",
+      "equipment": "Plate hotel",
+      "description": "Storing or retrieving plates with an automated system for high-throughput experiments. It improves workflow throughput with integration of automated robotic arms."
+    },
+    {
+      "id": "UHW180",
+      "name": "Incubation",
+      "equipment": "Incubator",
+      "description": "Maintaining specific conditions for cells or chemical reactions to promote growth or desired reactions. It is essential for cell culture and biochemical assays."
+    },
+    {
+      "id": "UHW190",
+      "name": "HT Aerobic Fermentation",
+      "equipment": "High throughput microbial fermentation system",
+      "description": "Process of cultivating microbial or cell cultures under oxygen-rich conditions in a parallelized, automated system. It is generally designed for small-scale (10–250mL) fermentations, optimizing conditions for microbial growth and product formation."
+    },
+    {
+      "id": "UHW200",
+      "name": "HT Anaerobic Fermentation",
+      "equipment": "High throughput anaerobic fermentation system",
+      "description": "Process of cultivating microbial or cell cultures under oxygen-free conditions in a parallelized, automated system. It is generally designed for small-scale (10–250mL) fermentations, supporting studies on anaerobic metabolism and product synthesis."
+    },
+    {
+      "id": "UHW210",
+      "name": "Microbioreactor Fermentation",
+      "equipment": "Microbioreactor fermentation system",
+      "description": "Cultivation of microbial or cell cultures in micro-scale bioreactors (<10 mL) equipped with advanced monitoring and control capabilities. It is mainly used for high-throughput screening of strains, media, and process parameters."
+    },
+    {
+      "id": "UHW220",
+      "name": "Bioreactor Fermentation",
+      "equipment": "Bioreactor fermentation system",
+      "description": "Process of cultivating microbial or cell cultures in bioreactors (liter scale). Bioreactors can operate in batch, fed-batch, or continuous modes and are commonly used in both research and industrial settings."
+    },
+    {
+      "id": "UHW230",
+      "name": "Nucleic Acid Fragment Analysis",
+      "equipment": "Nucleic acid fragment analyzer",
+      "description": "To separate, identify, and characterize fragments of nucleic acids based on their size. This unit operation is crucial for genetic analysis and quality control."
+    },
+    {
+      "id": "UHW240",
+      "name": "Protein Fragment Analysis",
+      "equipment": "Protein fragment analyzer",
+      "description": "To separate, identify, and characterize fragments of proteins for the study of structure, size, modifications, interactions, or expressions. It supports proteomics research and protein engineering."
+    },
+    {
+      "id": "UHW250",
+      "name": "Nucleic Acid Purification",
+      "equipment": "Nucleic acid purification system",
+      "description": "The process of purifying DNA or RNA from biological samples using an automated device. It ensures high purity and yield for downstream applications."
+    },
+    {
+      "id": "UHW255",
+      "name": "Centrifuge",
+      "equipment": "Centrifuge",
+      "description": "Separating components of different densities within a liquid sample by applying centrifugal force. Used for pelleting cells, clarifying solutions, separating precipitates, and sample preparation steps in various workflows."
+    },
+    {
+      "id": "UHW260",
+      "name": "Short-read Sequence Analysis",
+      "equipment": "Short read sequence analyzer",
+      "description": "Short-read-based sequencing using NGS technologies. It is essential for high-throughput genomic studies and variant detection."
+    },
+    {
+      "id": "UHW265",
+      "name": "Sanger Sequencing",
+      "equipment": "Capillary electrophoresis DNA sequencer",
+      "description": "Classical chain-termination sequencing for targeted amplicons and plasmids. Used for sequence verification and small-scale sequencing, producing chromatograms (ABI) and base calls. Supports 96-well plate automation for moderate throughput."
+    },
+    {
+      "id": "UHW270",
+      "name": "Long-read Sequence Analysis",
+      "equipment": "Long read sequence analyzer",
+      "description": "Long-read-based sequencing using platforms such as Nanopore or PacBio. It provides comprehensive insights into complex genomic regions and structural variations."
+    },
+    {
+      "id": "UHW280",
+      "name": "Sequence Quality Control",
+      "equipment": "Sequence quality control system",
+      "description": "Evaluating single-cell quality for single-cell analysis. It ensures data accuracy and reliability in single-cell genomics."
+    },
+    {
+      "id": "UHW290",
+      "name": "LC-MS-MS",
+      "equipment": "LC-MS/MS",
+      "description": "High-performance liquid chromatography coupled with tandem mass spectrometry. Provides highly sensitive and selective quantification and structural information by separating components with LC and analyzing specific ions through two stages of mass analysis. Ideal for targeted analysis in complex matrices like biological fluids."
+    },
+    {
+      "id": "UHW300",
+      "name": "LC-MS",
+      "equipment": "LC-MS",
+      "description": "Liquid chromatography coupled with mass spectrometry. Separates components using LC and identifies them based on their mass-to-charge ratio. Offers better identification than LC alone but less structural info and selectivity than LC-MS/MS. Used for general profiling."
+    },
+    {
+      "id": "UHW310",
+      "name": "HPLC",
+      "equipment": "HPLC",
+      "description": "High-performance liquid chromatography. It separates, identifies, and quantifies components in a liquid mixture using high pressure and a detector such as UV-Vis. Common for routine analysis, purity checks, and QC."
+    },
+    {
+      "id": "UHW320",
+      "name": "UPLC",
+      "equipment": "UPLC",
+      "description": "Ultra-high-performance liquid chromatography. Similar to HPLC but uses smaller particle columns and higher pressures for significantly faster analysis times and higher resolution. Advantageous for high-throughput screening or separating complex mixtures that are difficult for HPLC."
+    },
+    {
+      "id": "UHW330",
+      "name": "GC",
+      "equipment": "GC",
+      "description": "Gas chromatography. It separates volatile or semi-volatile compounds in their gaseous phase based on their interaction with a stationary phase. Typically uses detectors like FID or TCD. Used for analyzing volatile organic compounds, solvent purity, and flavor/fragrance profiling."
+    },
+    {
+      "id": "UHW340",
+      "name": "GC-MS",
+      "equipment": "GC-MS",
+      "description": "Gas chromatography coupled with mass spectrometry. It separates volatile components using GC and identifies them based on their mass spectra, often matched against libraries. It provides much better identification capabilities than GC alone. It is widely used in environmental analysis, forensics, and food safety."
+    },
+    {
+      "id": "UHW350",
+      "name": "GC-MS-MS",
+      "equipment": "GC-MS/MS",
+      "description": "Gas chromatography coupled with tandem mass spectrometry. Offers enhanced sensitivity and selectivity compared to GC-MS by using two stages of mass analysis after GC separation. Ideal for trace analysis in complex matrices."
+    },
+    {
+      "id": "UHW355",
+      "name": "SPE-MS-MS",
+      "equipment": "SPE-MS/MS",
+      "description": "Solid-Phase Extraction (SPE) system coupled with Tandem Mass Spectrometer. Combines automated SPE for sample cleanup, concentration, and matrix removal with Tandem Mass Spectrometry for highly sensitive and selective quantification."
+    },
+    {
+      "id": "UHW360",
+      "name": "FPLC",
+      "equipment": "FPLC",
+      "description": "Fast protein liquid chromatography. A type of liquid chromatography optimized for the purification of biomolecules like proteins and nucleic acids, typically using lower pressures and biocompatible materials compared to HPLC. Used for preparative scale separation."
+    },
+    {
+      "id": "UHW365",
+      "name": "Rapid Sugar Analyzer",
+      "equipment": "Biochemical Analyzer",
+      "description": "Rapid quantification of specific simple sugars (e.g., glucose, sucrose, lactate) in liquid samples, typically using enzyme-based electrochemical or optical sensors. Provides faster results than chromatography for targeted analytes, commonly used in cell culture and fermentation monitoring."
+    },
+    {
+      "id": "UHW370",
+      "name": "Oligomer Synthesis",
+      "equipment": "Oligomer synthesizer",
+      "description": "Parallel synthesis of oligomers using chemical methods for CT enzyme-based synthesis. It supports the production of custom DNA or RNA sequences for research and industrial applications."
+    },
+    {
+      "id": "UHW380",
+      "name": "Microplate Reading",
+      "equipment": "Multi-functional microplate reader",
+      "description": "Quantifying protein/cell activity by measuring fluorescence, OD, etc., on 96 or 384-well plates. It is essential for high-throughput screening and assay development."
+    },
+    {
+      "id": "UHW390",
+      "name": "Microscopy Imaging",
+      "equipment": "Microscopy",
+      "description": "Imaging of biological samples, such as animal cells. It provides detailed visualization for cell biology and histology studies."
+    },
+    {
+      "id": "UHW400",
+      "name": "Manual",
+      "equipment": "Manual operations",
+      "description": "Any general process of experiment including preparation of reagents, labware, and manual operations. It encompasses traditional laboratory techniques and procedures."
+    }
+  ]
+}

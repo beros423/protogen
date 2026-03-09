@@ -1,0 +1,235 @@
+{
+  "version": "0.3.2",
+  "language": "English",
+  "lastUpdated": "2025-08-15",
+  "unitOperations": [
+    {
+      "id": "USW005",
+      "name": "Biological Database",
+      "software": "https://registry.igem.org/, Partbank, https://synbiohub.org/, https://bioparts.org/",
+      "description": "Retrieving and utilizing standardized biological parts from curated databases for use in downstream applications. This operation enables users to search, filter, and select genetic elements such as promoters, coding DNA sequences (CDS), and terminators, ensuring compatibility and adherence to established design standards in assembly and characterization."
+    },
+    {
+      "id": "USW010",
+      "name": "DNA Oligomer Pool Design",
+      "software": "Dsembler, DNAWorks",
+      "description": "A software package that designs DNA oligomers which are pooled in a single tube. It optimizes the selection and combination of oligomers for efficient DNA assembly and synthesis."
+    },
+    {
+      "id": "USW020",
+      "name": "Primer Design",
+      "software": "SnapGene, Primer3, OligoAnalyzer",
+      "description": "Designing primers regarding melting temperature and structure. The primers are used for mutant generation, PCR primers, and other molecular biology applications, ensuring specificity and efficiency in amplification."
+    },
+    {
+      "id": "USW030",
+      "name": "Vector Design",
+      "software": "VectorNTI, SnapGene, Geneious",
+      "description": "Designing vector maps regarding inserts and a plasmid backbone. This might include primer design and DNA assembly processes, facilitating the construction of functional genetic vectors for cloning and expression."
+    },
+    {
+      "id": "USW040",
+      "name": "Sequence Optimization",
+      "software": "GeneOptimizer, JCat",
+      "description": "Modifying codon usage of a DNA sequence to maximize protein expression in a specific host. This software ensures optimal translation efficiency and protein yield by adapting sequences to host-specific codon preferences."
+    },
+    {
+      "id": "USW050",
+      "name": "Synthesis Screening",
+      "software": "UltraSEQ, Common Mechanism, FAST-NA",
+      "description": "Tools for screening potentially dangerous DNA sequences. These tools help ensure biosafety by identifying sequences that may pose risks in synthetic biology applications."
+    },
+    {
+      "id": "USW060",
+      "name": "Structure-based Sequence Generation",
+      "software": "ProteinMPNN",
+      "description": "Generating sequences based on protein structures using AI models. This software aids in designing novel proteins with desired structural and functional properties."
+    },
+    {
+      "id": "USW070",
+      "name": "Protein Structure Prediction",
+      "software": "Alphafold, Rosettafold, I-TASSER",
+      "description": "Predicting protein structures using AI models. These tools provide insights into protein folding and stability, supporting protein engineering and drug discovery efforts."
+    },
+    {
+      "id": "USW080",
+      "name": "Protein Structure Generation",
+      "software": "RFdiffusion",
+      "description": "Generating protein structures using AI models. This software facilitates the design of new proteins and enzymes with specific catalytic or binding functions."
+    },
+    {
+      "id": "USW090",
+      "name": "Retrosynthetic Pathway Design",
+      "software": "RetroPath2.0, ECREACT, BioNavi-NP",
+      "description": "To predict biosynthetic pathways using tools for checking reaction feasibilities and for novel pathway discovery. These tools support metabolic engineering by identifying efficient routes for chemical synthesis."
+    },
+    {
+      "id": "USW100",
+      "name": "Enzyme Identification",
+      "software": "DeepEC, Selenzyme, SoluProt",
+      "description": "To search for enzymes from databases or to predict enzyme properties such as reactivities for selecting proper enzymes in pathways. This software aids in enzyme discovery and characterization for biocatalysis."
+    },
+    {
+      "id": "USW110",
+      "name": "Sequence Alignment",
+      "software": "BLAST, MUSCLE, Clustalw, Omega",
+      "description": "Exploring and comparing sequence similarity using alignment algorithms. These tools are essential for identifying homologous sequences and understanding evolutionary relationships."
+    },
+    {
+      "id": "USW120",
+      "name": "Sequence Trimming and Filtering",
+      "software": "Trimmomatic, Cutadapt, Porechop, Filtlong",
+      "description": "Preprocessing for removing low-quality long/short-read sequences. This step is crucial for ensuring data quality in sequencing projects."
+    },
+    {
+      "id": "USW130",
+      "name": "Read Mapping and Alignment",
+      "software": "BWA, Bowtie2, Minimap2, GraphMap",
+      "description": "Mapping long/short-read sequences to reference sequences. These tools are used for genome assembly, variant calling, and transcriptomics."
+    },
+    {
+      "id": "USW140",
+      "name": "Sequence Assembly",
+      "software": "Velvet, SOAP, Quast, Canu, Flye",
+      "description": "Assembling long/short-read sequences for complete gene, pathway, and chromosome. This software supports the reconstruction of genomes and metagenomes."
+    },
+    {
+      "id": "USW145",
+      "name": "Metagenomic Assembly",
+      "software": "MetaSPAdes, MEGAHIT",
+      "description": "Assembling metagenomic data to reconstruct genomes from complex microbial communities. This software supports environmental and clinical metagenomics studies."
+    },
+    {
+      "id": "USW150",
+      "name": "Sequence Quality Control",
+      "software": "FastQC, MultiQC, NanoPlot, pycoQC",
+      "description": "Performing quality control (QC) on long/short-read fastq and fast5 files. QC is essential for identifying and correcting errors in sequencing data."
+    },
+    {
+      "id": "USW160",
+      "name": "Demultiplexing",
+      "software": "bcl-convert, Guppy",
+      "description": "Separating NGS reads based on native or user-defined barcodes. This process is critical for handling multiplexed sequencing data."
+    },
+    {
+      "id": "USW170",
+      "name": "Variant Calling",
+      "software": "GATK, bcftools, Sniffles, Longshot",
+      "description": "Detecting variants based on read mapping. These tools are used for identifying SNPs, indels, and structural variants in genomic data."
+    },
+    {
+      "id": "USW180",
+      "name": "RNA-Seq Analysis",
+      "software": "DESeq2/EdgeR (R), Galaxy, HISAT2",
+      "description": "Processing and analyzing transcriptomic data to quantify gene expression levels, identify splice variants, and detect differential gene expression. This software supports functional genomics studies."
+    },
+    {
+      "id": "USW185",
+      "name": "Gene Set Enrichment Analysis",
+      "software": "GSEA, DAVID",
+      "description": "Analyzing gene expression data to identify enriched biological pathways. This software supports functional genomics and systems biology research."
+    },
+    {
+      "id": "USW190",
+      "name": "Proteomics Data Analysis",
+      "software": "MaxQuant, Perseus, Proteome Discoverer",
+      "description": "Processing and interpreting data from mass spectrometry to identify and quantify proteins, understand modifications, and assess protein interactions. These tools are essential for proteomics research."
+    },
+    {
+      "id": "USW200",
+      "name": "Phylogenetic Analysis",
+      "software": "MEGA, PhyML",
+      "description": "Determining the evolutionary relationships among species or sequences by constructing phylogenetic trees based on sequence similarities and differences. This software supports evolutionary biology studies."
+    },
+    {
+      "id": "USW210",
+      "name": "Metabolic Flux Analysis",
+      "software": "COBRA Toolbox, FBA, CellNetAnalyzer",
+      "description": "Modeling and analyzing metabolic pathways, providing insights into cellular metabolism and pathway optimization. These tools are used for metabolic engineering and systems biology."
+    },
+    {
+      "id": "USW220",
+      "name": "Deep Learning Data Preparation",
+      "software": "pytorch::DataLoader, Huggingface::datasets",
+      "description": "Preparing and batching datasets for AI model training and evaluation. This software supports machine learning workflows in bioinformatics."
+    },
+    {
+      "id": "USW230",
+      "name": "Sequence Embedding",
+      "software": "ProtT5, ProtBERT, ESM",
+      "description": "Biological sequence embedding procedure. This process is used for transforming sequences into numerical representations for machine learning applications."
+    },
+    {
+      "id": "USW240",
+      "name": "Deep Learning Model Training",
+      "software": "CNN, LSTM, Transformer, Bayesian opt.",
+      "description": "Model training procedure using training data. This software supports the development of AI models for various bioinformatics tasks."
+    },
+    {
+      "id": "USW250",
+      "name": "Model Evaluation",
+      "software": "scikit-learn, TensorBoard",
+      "description": "Utilizing model evaluation metrics (accuracy, precision, recall, F1 score, etc.). This software is used for assessing the performance of machine learning models."
+    },
+    {
+      "id": "USW260",
+      "name": "Hyperparameter Tuning",
+      "software": "Optuna, HyperOpt",
+      "description": "Efficiently exploring the search space using Bayesian optimization techniques. This software supports the optimization of machine learning models."
+    },
+    {
+      "id": "USW270",
+      "name": "Model Deployment",
+      "software": "TorchScript, FastAPI",
+      "description": "Deploying trained models as services. This software supports the integration of AI models into production environments."
+    },
+    {
+      "id": "USW280",
+      "name": "Monitoring and Reporting",
+      "software": "Prometheus, Grafana",
+      "description": "Monitoring and visualizing performance and resource usage of AI models. This software supports the maintenance and optimization of deployed models."
+    },
+    {
+      "id": "USW290",
+      "name": "Phenotype Data Preprocessing",
+      "software": "R, Python",
+      "description": "Preprocessing measured and collected phenotype data. It involves cleaning, organizing, and transforming raw phenotype datasets for downstream analysis."
+    },
+    {
+      "id": "USW300",
+      "name": "XCMS Analysis",
+      "software": "XCMS (R)",
+      "description": "Analyzing and visualizing chromatographically separated and single-spectra mass spectral data. This software supports metabolomics research."
+    },
+    {
+      "id": "USW310",
+      "name": "Flow Cytometry Analysis",
+      "software": "flowcore, flowworkspace (R), flowJo",
+      "description": "Analyzing and visualizing flow cytometry data. This software supports immunology and cell biology research."
+    },
+    {
+      "id": "USW320",
+      "name": "DNA Assembly Simulation",
+      "software": "pyDNA (python)",
+      "description": "Simulating DNA assembly such as Golden Gate and Gibson for increasing assembly success rate. This software supports synthetic biology and genetic engineering."
+    },
+    {
+      "id": "USW325",
+      "name": "Gene Editing Simulation",
+      "software": "CRISPResso, CHOPCHOP",
+      "description": "Simulating gene editing outcomes using CRISPR technology. This software helps predict off-target effects and optimize guide RNA design for precise genome editing."
+    },
+    {
+      "id": "USW330",
+      "name": "Well Plate Mapping",
+      "software": "Well plate mapping software",
+      "description": "Software for mapping well plate source plates to destination plates. This tool supports high-throughput screening and assay development."
+    },
+    {
+      "id": "USW340",
+      "name": "Computation",
+      "software": "Computer",
+      "description": "A general process of data collection, preprocessing, and analysis steps. This software supports a wide range of bioinformatics and computational biology applications."
+    }
+  ]
+}
