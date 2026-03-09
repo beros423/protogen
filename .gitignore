@@ -146,6 +146,8 @@ cython_debug/
 .DS_Store
 
 # Project-specific
+.devcontainer/
+.github/skills/
 backups/
 test_output/
 test_ot2_output/
