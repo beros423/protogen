@@ -1,9 +1,0 @@
-[
-  {
-    "cycle": 0,
-    "best_score": 0.3081597201412706,
-    "best_model": "random_forest",
-    "timestamp": "2025-10-13T13:49:58.051667",
-    "model_path": "projects\\Sample_Project_20251013_134815\\models\\model_cycle_0.joblib"
-  }
-]

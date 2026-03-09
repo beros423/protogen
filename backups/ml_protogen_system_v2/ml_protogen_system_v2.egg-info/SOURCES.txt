@@ -1,8 +1,0 @@
-README.md
-pyproject.toml
-ml_protogen_system_v2.egg-info/PKG-INFO
-ml_protogen_system_v2.egg-info/SOURCES.txt
-ml_protogen_system_v2.egg-info/dependency_links.txt
-ml_protogen_system_v2.egg-info/requires.txt
-ml_protogen_system_v2.egg-info/top_level.txt
-src/ml_core.py

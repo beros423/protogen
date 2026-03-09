@@ -1,5 +1,0 @@
-name,plate,well,volume,note,0,1,2,3,4
-dest_01_1,dest_01,A1,6.0,(P)TDH/(C)mTurquiose2/(T)ENO1/(N)s|1/GGAmix,(P)TDH,(C)mTurquiose2,(T)ENO1,(N)s|1,GGAmix
-dest_01_2,dest_01,A2,6.0,(P)CCW12/(C)mTurquiose2/(T)ENO1/(N)s|1/GGAmix,(P)CCW12,(C)mTurquiose2,(T)ENO1,(N)s|1,GGAmix
-dest_01_3,dest_01,A3,6.0,(P)RPL18B/(C)Venus/(T)ISSA1/(N)1|2/GGAmix,(P)RPL18B,(C)Venus,(T)ISSA1,(N)1|2,GGAmix
-dest_01_4,dest_01,A4,6.0,(P)RPL18B/(C)mRuby2/(T)ISSA1/(N)1|2/GGAmix,(P)RPL18B,(C)mRuby2,(T)ISSA1,(N)1|2,GGAmix
