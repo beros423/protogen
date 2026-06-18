@@ -234,6 +234,34 @@ def create_step1_layout():
             ])
         ], className="mb-4"),
         
+        # Global Volume Unit Setting
+        dbc.Card([
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        html.Label("Volume 단위", className="fw-bold mb-2"),
+                        dbc.RadioItems(
+                            id='volume-unit-selector',
+                            options=[
+                                {'label': 'µL', 'value': 'uL'},
+                                {'label': 'nL', 'value': 'nL'}
+                            ],
+                            value='uL',
+                            inline=True,
+                            inputClassName="me-1",
+                            labelClassName="me-3"
+                        )
+                    ], md=3),
+                    dbc.Col([
+                        html.Small(
+                            "Step 2 (Part volumes) 및 Step 3 (Common parts) 의 모든 volume 입력에 적용됩니다.",
+                            className="text-muted"
+                        )
+                    ], md=9, className="d-flex align-items-center")
+                ])
+            ])
+        ], className="shadow-sm mb-4", style={"border": "none", "border-radius": "15px"}),
+
         # Upload Section
         dbc.Card([
             dbc.CardBody([
@@ -270,7 +298,8 @@ def create_step1_layout():
             dbc.Col([
                 html.Div(id='source-preview')
             ])
-        ])
+        ]),
+
     ], fluid=True)
 
 def create_step2_layout():
@@ -415,6 +444,33 @@ def create_step3_layout():
         ], className="mb-4"),
         
         # Commons
+        # Target total volume
+        dbc.Card([
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        html.Label("목표 총량 (Up to)", className="fw-bold mb-2"),
+                        dbc.InputGroup([
+                            dbc.Input(
+                                id='total-volume-target',
+                                type="number",
+                                min=0,
+                                step="any",
+                                placeholder="예: 10 (선택사항)"
+                            ),
+                            dbc.InputGroupText(id='total-volume-unit-label', children="µL")
+                        ])
+                    ], md=4),
+                    dbc.Col([
+                        html.Small(
+                            "'Up to' 체크된 common part가 목표 총량에서 나머지를 자동으로 채웁니다.",
+                            className="text-muted"
+                        )
+                    ], md=8, className="d-flex align-items-center")
+                ])
+            ])
+        ], className="shadow-sm mb-3", style={"border": "none", "border-radius": "15px"}),
+
         dbc.Card([
             dbc.CardHeader([
                 html.H5([
@@ -435,12 +491,12 @@ def create_step3_layout():
             dbc.CardBody([
                 dbc.Alert([
                     html.I(className="fas fa-info-circle me-2"),
-                    "These parts will be included in every assembly."
+                    "These parts will be included in every assembly. 'Up to' 체크 시 목표 총량에서 나머지를 자동 계산합니다."
                 ], color="info", className="mb-3"),
                 html.Div(id='commons-container')
             ])
         ], className="shadow-sm mb-4", style={"border": "none", "border-radius": "15px"}),
-        
+
         html.Div(id='total-volume-display', className="mb-4")
     ], fluid=True)
 
@@ -631,6 +687,8 @@ app.layout = html.Div([
     dcc.Store(id='part-selections-data'),
     dcc.Store(id='custom-wells-data'),  # Store for custom wells
     dcc.Store(id='wells-needed-count'),  # Store for number of wells needed
+    dcc.Store(id='volume-unit-store', data='uL'),  # Store for volume unit selection
+    dcc.Store(id='total-volume-target-store'),  # Store for total volume target
     
     # Header
     dbc.Container([
@@ -781,10 +839,12 @@ def upload_sources(contents, filename):
         # Validate required columns
         required_cols = ['type', 'name', 'plate', 'well', 'volume', 'note']
         if not all(col in df.columns for col in required_cols):
-            return None, dbc.Alert("❌ CSV must contain columns: type, name, plate, well, volume, note", 
+            return None, dbc.Alert("❌ CSV must contain columns: type, name, plate, well, volume, note",
                                   color="danger")
-        
-        sources = df[required_cols].to_dict('records')
+
+        # Include optional concentration column if present
+        load_cols = required_cols + (['concentration'] if 'concentration' in df.columns else [])
+        sources = df[load_cols].to_dict('records')
         
         return sources, dbc.Alert([
             html.I(className="fas fa-check-circle me-2"),
@@ -852,6 +912,30 @@ def update_source_preview(sources_data):
         ], style={'padding': '0'})
     ], className="shadow-sm", style={"border": "none", "border-radius": "15px"})
 
+# Volume unit selector callback
+@app.callback(
+    [Output('volume-unit-store', 'data'),
+     Output('total-volume-unit-label', 'children')],
+    Input('volume-unit-selector', 'value')
+)
+def update_volume_unit(unit):
+    label = 'nL' if unit == 'nL' else 'µL'
+    return unit, label
+
+
+# Update value label based on part mode
+@app.callback(
+    Output({'type': 'part-value-label', 'index': MATCH}, 'children'),
+    Input({'type': 'part-mode', 'index': MATCH}, 'value'),
+    State('volume-unit-store', 'data'),
+    prevent_initial_call=False
+)
+def update_part_value_label(mode, volume_unit):
+    if mode == 'fmol':
+        return "목표량 (fmol)"
+    return f"Volume ({volume_unit or 'µL'})"
+
+
 # Template download callbacks
 @app.callback(
     Output('download-csv-template', 'data'),
@@ -911,14 +995,15 @@ def upload_design(contents, filename):
     Output('part-types-container', 'children'),
     [Input('num-parts', 'value'),
      Input('sources-data', 'data'),
-     Input('loaded-design-data', 'data')]
+     Input('loaded-design-data', 'data'),
+     Input('volume-unit-store', 'data')]
 )
-def update_part_types(num_parts, sources_data, loaded_design):
+def update_part_types(num_parts, sources_data, loaded_design, volume_unit):
     if not sources_data or not num_parts:
         return html.P("Please load source data first.", className="text-muted")
     
     df = pd.DataFrame(sources_data)
-    available_types = df['type'].unique().tolist()
+    available_types = [t for t in df['type'].unique().tolist() if t is not None and str(t) != 'nan']
     
     part_inputs = []
     
@@ -931,27 +1016,47 @@ def update_part_types(num_parts, sources_data, loaded_design):
                 default_type = loaded_type
         
         part_inputs.append(
-            dbc.Row([
-                dbc.Col([
-                    html.Label(f"Part {i+1} Type", className="fw-bold mb-2"),
-                    dcc.Dropdown(
-                        id={'type': 'part-type', 'index': i},
-                        options=[{'label': t, 'value': t} for t in available_types],
-                        value=default_type,
-                        style={'color': 'black'}
-                    )
-                ], md=8),
-                dbc.Col([
-                    html.Label("Volume (μl)", className="fw-bold mb-2"),
-                    dbc.Input(
-                        id={'type': 'part-volume', 'index': i},
-                        type="number",
-                        value=1.0,
-                        step=0.1,
-                        min=0
-                    )
-                ], md=4)
-            ], className="mb-3")
+            dbc.Card([
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label(f"Part {i+1} Type", className="fw-bold mb-1 small"),
+                            dcc.Dropdown(
+                                id={'type': 'part-type', 'index': i},
+                                options=[{'label': t, 'value': t} for t in available_types],
+                                value=default_type,
+                                style={'color': 'black'}
+                            )
+                        ], md=4),
+                        dbc.Col([
+                            html.Label("입력 모드", className="fw-bold mb-1 small"),
+                            dbc.RadioItems(
+                                id={'type': 'part-mode', 'index': i},
+                                options=[
+                                    {'label': f'Volume ({volume_unit or "µL"})', 'value': 'volume'},
+                                    {'label': 'fmol 목표량', 'value': 'fmol'}
+                                ],
+                                value='volume',
+                                inline=True,
+                                inputClassName="me-1",
+                                labelClassName="me-2 small"
+                            )
+                        ], md=4),
+                        dbc.Col([
+                            html.Label(id={'type': 'part-value-label', 'index': i},
+                                       children=f"Volume ({volume_unit or 'µL'})",
+                                       className="fw-bold mb-1 small"),
+                            dbc.Input(
+                                id={'type': 'part-volume', 'index': i},
+                                type="number",
+                                value=1.0,
+                                step=0.1,
+                                min=0
+                            )
+                        ], md=4)
+                    ], className="g-2")
+                ], className="py-2 px-3")
+            ], className="mb-2", style={"border-radius": "8px", "background": "#2d3748", "border": "1px solid #4a5568"})
         )
     
     return html.Div(part_inputs)
@@ -1044,14 +1149,15 @@ def update_commons_count(add_clicks, remove_clicks, current_count):
 @app.callback(
     Output('commons-container', 'children'),
     [Input('commons-count', 'data'),
-     Input('sources-data', 'data')]
+     Input('sources-data', 'data'),
+     Input('volume-unit-store', 'data')]
 )
-def update_commons_fields(count, sources_data):
+def update_commons_fields(count, sources_data, volume_unit):
     if not sources_data or count == 0:
         return html.P("No common parts added.", className="text-muted")
     
     df = pd.DataFrame(sources_data)
-    types = df['type'].unique().tolist()
+    types = [t for t in df['type'].unique().tolist() if t is not None and str(t) != 'nan']
     
     fields = []
     for i in range(count):
@@ -1064,27 +1170,39 @@ def update_commons_fields(count, sources_data):
                         placeholder="Select type",
                         style={'color': 'black'}
                     )
-                ], md=4),
+                ], md=3),
                 dbc.Col([
                     dcc.Dropdown(
                         id={'type': 'common-name', 'index': i},
                         placeholder="Select part",
                         style={'color': 'black'}
                     )
-                ], md=5),
+                ], md=4),
                 dbc.Col([
-                    dbc.Input(
-                        id={'type': 'common-volume', 'index': i},
-                        type="number",
-                        value=1.0,
-                        step=0.1,
-                        min=0,
-                        placeholder="Volume"
+                    dbc.InputGroup([
+                        dbc.Input(
+                            id={'type': 'common-volume', 'index': i},
+                            type="number",
+                            value=1.0,
+                            step=0.1,
+                            min=0,
+                            placeholder="Volume"
+                        ),
+                        dbc.InputGroupText(volume_unit or 'µL', style={"fontSize": "0.8rem"})
+                    ])
+                ], md=3),
+                dbc.Col([
+                    dbc.Checklist(
+                        id={'type': 'common-upto', 'index': i},
+                        options=[{'label': 'Up to', 'value': 'upto'}],
+                        value=[],
+                        inline=True,
+                        className="pt-2"
                     )
-                ], md=3)
+                ], md=2)
             ], className="mb-2")
         )
-    
+
     return html.Div(fields)
 
 # Update common part names based on type selection
@@ -1101,19 +1219,63 @@ def update_common_names(selected_type, sources_data):
     names = df[df['type'] == selected_type]['name'].unique().tolist()
     return [{'label': name, 'value': name} for name in names]
 
+# Persist total volume target to store so it's accessible across tabs
+@app.callback(
+    Output('total-volume-target-store', 'data'),
+    Input('total-volume-target', 'value')
+)
+def save_total_volume_target(value):
+    return value
+
+
+# Disable common volume input when 'Up to' is checked
+@app.callback(
+    Output({'type': 'common-volume', 'index': MATCH}, 'disabled'),
+    Input({'type': 'common-upto', 'index': MATCH}, 'value')
+)
+def toggle_common_volume(upto_val):
+    return bool(upto_val and 'upto' in upto_val)
+
+
 # Total volume calculation
 @app.callback(
     Output('total-volume-display', 'children'),
     [Input({'type': 'part-volume', 'index': ALL}, 'value'),
-     Input({'type': 'common-volume', 'index': ALL}, 'value')]
+     Input({'type': 'common-volume', 'index': ALL}, 'value'),
+     Input({'type': 'common-upto', 'index': ALL}, 'value'),
+     Input('total-volume-target', 'value'),
+     Input('volume-unit-store', 'data')]
 )
-def calculate_total_volume(part_volumes, common_volumes):
-    total = sum(v for v in part_volumes if v) + sum(v for v in common_volumes if v)
-    
-    return dbc.Alert([
-        html.I(className="fas fa-flask me-2"),
-        f"Total volume per assembly: {total:.2f} μl"
-    ], color="info", className="text-center")
+def calculate_total_volume(part_volumes, common_volumes, common_uptos, target_total, volume_unit):
+    upto_indices = {i for i, v in enumerate(common_uptos or []) if v and 'upto' in v}
+    fixed_common = sum(v for i, v in enumerate(common_volumes) if v and i not in upto_indices)
+    fixed_parts = sum(v for v in part_volumes if v)
+    fixed_total = fixed_parts + fixed_common
+
+    u = volume_unit or 'µL'
+
+    if target_total and upto_indices:
+        upto_vol = target_total - fixed_total
+        color = "success" if upto_vol >= 0 else "danger"
+        return dbc.Alert([
+            html.I(className="fas fa-flask me-2"),
+            f"고정 용량: {fixed_total:.2f} {u}  |  Up to 용량: ",
+            html.Strong(f"{upto_vol:.2f} {u}", className="text-white"),
+            f"  |  총량: {target_total:.2f} {u}"
+        ], color=color, className="text-center")
+    elif target_total:
+        remaining = target_total - fixed_total
+        color = "warning" if remaining > 0 else ("success" if remaining == 0 else "danger")
+        return dbc.Alert([
+            html.I(className="fas fa-flask me-2"),
+            f"현재 합산: {fixed_total:.2f} {u}  /  목표: {target_total:.2f} {u}  |  잔여: ",
+            html.Strong(f"{remaining:.2f} {u}")
+        ], color=color, className="text-center")
+    else:
+        return dbc.Alert([
+            html.I(className="fas fa-flask me-2"),
+            f"Total volume per assembly: {fixed_total:.2f} {u}"
+        ], color="info", className="text-center")
 
 # Calculate wells needed callback
 @app.callback(
@@ -1384,20 +1546,25 @@ def accept_custom_wells(n_clicks, mode, starting_well, custom_wells_str, wells_n
      State('num-repeats', 'value'),
      State({'type': 'part-type', 'index': ALL}, 'value'),
      State({'type': 'part-volume', 'index': ALL}, 'value'),
+     State({'type': 'part-mode', 'index': ALL}, 'value'),
      State({'type': 'assembly-part', 'assembly': ALL, 'part': ALL}, 'value'),
      State({'type': 'common-type', 'index': ALL}, 'value'),
      State({'type': 'common-name', 'index': ALL}, 'value'),
      State({'type': 'common-volume', 'index': ALL}, 'value'),
+     State({'type': 'common-upto', 'index': ALL}, 'value'),
+     State('total-volume-target', 'value'),
      State('dest-plate-name', 'value'),
      State('dest-plate-type', 'value'),
      State('well-position-mode', 'value'),
-     State('starting-well-input', 'value')],
+     State('starting-well-input', 'value'),
+     State('volume-unit-store', 'data'),
+    ],
     prevent_initial_call=True
 )
 def generate_protocol(nav_clicks, custom_wells_data, sources_data, num_assemblies, num_repeats,
-                     part_types, part_volumes, assembly_selections,
-                     common_types, common_names, common_volumes,
-                     dest_plate_name, dest_plate_type, well_mode, starting_well):
+                     part_types, part_volumes, part_modes, assembly_selections,
+                     common_types, common_names, common_volumes, common_uptos, total_volume_target,
+                     dest_plate_name, dest_plate_type, well_mode, starting_well, volume_unit):
     
     if not sources_data:
         return None, None, dbc.Alert("No source data available", color="warning")
@@ -1406,11 +1573,29 @@ def generate_protocol(nav_clicks, custom_wells_data, sources_data, num_assemblie
         # Build designs list
         designs = []
         sources_df = pd.DataFrame(sources_data)
+
+        # Build concentration lookup {name: µL/fmol}
+        # Priority: part-type row input > CSV column
+        conc_lookup = {}
+        if 'concentration' in sources_df.columns:
+            for _, row in sources_df[sources_df['concentration'].notna()].iterrows():
+                if row['concentration'] > 0:
+                    conc_lookup[row['name']] = row['concentration']
+        # Build per-part-type mode map: {part_type: ('volume'|'ng', value)}
+        part_mode_map = {}
+        for pt, pv, pm in zip(part_types or [], part_volumes or [], part_modes or []):
+            if pt:
+                part_mode_map[pt] = (pm or 'volume', pv or 0)
         
-        # Build commons list
+        # Build commons list; flag 'upto' items for dynamic volume calculation
         commons = []
-        for ctype, cname, cvol in zip(common_types, common_names, common_volumes):
-            if ctype and cname and cvol:
+        for i, (ctype, cname, cvol) in enumerate(zip(common_types, common_names, common_volumes)):
+            if not (ctype and cname):
+                continue
+            is_upto = bool(common_uptos and i < len(common_uptos) and common_uptos[i] and 'upto' in common_uptos[i])
+            if is_upto:
+                commons.append({'name': cname, 'volume': None, 'upto': True})
+            elif cvol:
                 commons.append({'name': cname, 'volume': cvol})
         
         # Process each assembly
@@ -1439,11 +1624,32 @@ def generate_protocol(nav_clicks, custom_wells_data, sources_data, num_assemblie
                 
                 for combo in part_combinations:
                     design = []
-                    for item, vol in combo:
+                    for part_type, (item, vol) in zip(part_types_order, combo):
                         if item:
+                            mode, target_val = part_mode_map.get(part_type, ('volume', vol))
+                            if mode == 'fmol' and target_val and item in conc_lookup:
+                                vol_ul = target_val * conc_lookup[item]  # always µL
+                                vol = round(vol_ul * 1000 if volume_unit == 'nL' else vol_ul, 4)
                             design.append({'name': item, 'volume': vol})
-                    design = design + commons
-                    
+
+                    # Resolve fixed commons and compute 'up to' volume
+                    fixed_commons = [c for c in commons if not c.get('upto')]
+                    upto_commons = [c for c in commons if c.get('upto')]
+
+                    design_commons = list(fixed_commons)
+                    if upto_commons:
+                        if not total_volume_target:
+                            return None, None, dbc.Alert(
+                                "⚠️ 'Up to' 체크된 common part가 있지만 목표 총량이 설정되지 않았습니다. Step 3에서 목표 총량을 입력하세요.",
+                                color="warning"
+                            )
+                        fixed_vol = sum(item['volume'] for item in design) + sum(c['volume'] for c in fixed_commons)
+                        upto_vol = round(total_volume_target - fixed_vol, 4)
+                        for uc in upto_commons:
+                            design_commons.append({'name': uc['name'], 'volume': max(0, upto_vol)})
+
+                    design = design + design_commons
+
                     for _ in range(num_repeats):
                         designs.append(design)
         
@@ -1491,8 +1697,9 @@ def generate_protocol(nav_clicks, custom_wells_data, sources_data, num_assemblie
         )
         
         # Rename columns with dots to underscores for AG Grid compatibility
-        protocol.columns = [str(col).replace('.', '_') for col in protocol.columns]
-        lv1_outputs.columns = [str(col).replace('.', '_') for col in lv1_outputs.columns]
+        u = volume_unit or 'uL'
+        protocol.columns = [str(col).replace('.', '_').replace('Volume', f'Volume ({u})') for col in protocol.columns]
+        lv1_outputs.columns = [str(col).replace('.', '_').replace('volume', f'volume ({u})') for col in lv1_outputs.columns]
         
         # Convert to JSON for storage
         protocol_json = protocol.to_json(orient='records')
